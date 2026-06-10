@@ -1,7 +1,7 @@
 ---
 title: "숙제 3"
 subtitle: "데이터과학 입문"
-author: "원중호"
+author: "[이름]"
 date: today
 date-format: "MMMM YYYY"
 institute: 서울대학교 통계학과
@@ -15,8 +15,46 @@ mainfont: "Noto Sans Korean Light"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, fig.width=6, fig.height=4, out.width = "70%", fig.align = "center", python.reticulate = TRUE)  
 options(knitr.table.format = "html")
-reticulate::use_condaenv(condaenv = "introds", conda = "/opt/homebrew/bin/conda") # for persistency
+library(reticulate)
+
+# GitHub Actions 등: RETICULATE_PYTHON이 있으면 그 인터프리터 사용
+if (Sys.info()[["sysname"]] == "Windows") {
+  # 로컬 Windows: 특정 conda 환경
+  reticulate::use_condaenv(condaenv = "hsm", conda = "C:/Users/hsm/anaconda3/Scripts/conda.exe")
+}
 ```
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# install.packages(c("reticulate", "tidyverse", "Lahman", "MASS", "patchwork"))
+
+library(tidyverse)
+library(Lahman)
+library(MASS)
+library(patchwork)
+```
+
+## Python
+
+```{python}
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot
+
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from scipy import stats
+from patsy import dmatrix
+
+import pylahman
+```
+
+:::
 
 ## 지시사항
 

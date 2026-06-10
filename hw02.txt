@@ -1,0 +1,2321 @@
+---
+title: "숙제 2"
+subtitle: "데이터과학 입문"
+author: "한상문"
+date: today
+date-format: "MMMM YYYY"
+institute: 서울대학교 통계학과
+format:
+  html:
+    embed-resources: true
+
+mainfont: "Noto Sans Korean Light"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, fig.width=6, fig.height=4, out.width = "70%", fig.align = "center", python.reticulate = TRUE)  
+options(knitr.table.format = "html")
+# install.packages("reticulate")
+library(reticulate)
+
+# GitHub Actions 등: RETICULATE_PYTHON이 있으면 그 인터프리터 사용
+if (Sys.info()[["sysname"]] == "Windows") {
+  # 로컬 Windows: 특정 conda 환경
+  reticulate::use_condaenv(condaenv = "hsm", conda = "C:/Users/hsm/anaconda3/Scripts/conda.exe")
+}
+```
+
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# install.packages("readr")
+# install.packages("Lahman")
+# install.packages("mosaicData")
+# install.packages("tidyverse")
+# install.packages("babynames")
+# install.packages("mdsr")
+# install.packages("NHANES")
+# install.packages("patchwork")
+
+library(readr)
+library(Lahman)
+library(mosaicData)
+library(tidyverse)
+library(babynames)
+library(mdsr)
+library(NHANES)
+library(patchwork)
+
+#if (!dir.exists("data")) dir.create("data")
+
+# 데이터를 csv로 저장
+# write.csv(NHANES, "data/NHANES.csv", row.names = FALSE)
+# write.csv(Whickham, "data/Whickham.csv", row.names = FALSE)
+```
+
+## Python
+
+```{python}
+import matplotlib
+matplotlib.use('Agg')  # patchworklib 사용시 오류 방지
+import matplotlib.pyplot
+
+import numpy as np
+import pandas as pd
+import polars as pl
+import polars.selectors as cs
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from scipy.interpolate import interp1d
+from plotnine import *
+import patchworklib as pw
+
+import pylahman
+import pybabynames as bn
+
+from statsmodels.stats.anova import anova_lm
+from patsy import dmatrix
+```
+:::
+
+## 지시사항
+
+제출마감 2026-05-15 23:00
+
+1.	R과 Python을 모두 사용하여 사용된 코드와 데이터랭글링 절차, 분석결과를 설명한다. 두 언어의 분석결과가 차이가 있으면 그 이유를 설명한다.
+2.  [Quarto Markdown](https://quarto.org/docs/authoring/markdown-basics.html)을 사용한다. 제공된 숙제 `.qmd` 파일에 본인의 답안을 "답안" 절에 추가하여 제출한다. Quarto Markdown은 RStudio 또는 Visual Studio Code에 [Quarto Extension](https://marketplace.visualstudio.com/items?itemName=quarto.quarto)을 추가하여 컴파일, 다른 문서 형식으로 변환할 수 있다. 
+3.  R의 `reticulate` 패키지를 사용하면 하나의 `.qmd` 파일 안에서 R과 Python을 동시에 사용할 수 있다. 이때 다음 문법을 사용하여 두 언어 코드를 탭으로 구분한다.  숙제 `.qmd` 파일은 `reticulate`을 사용하도록 준비되어 있다.
+
+````
+::: {.panel-tabset}
+
+## R
+
+```{{r}}
+R code
+```
+
+## Python
+
+```{{python}}
+Python code
+```
+
+:::
+
+````
+
+3.  `.qmd`를 컴파일하여 생성된 `.html` 파일을 함께 저장소에 제출한다.
+4.  함께 제공된 `student.yml`을 함께 작성하여 저장소에 제출한다.
+
+## 평가 기준
+
+1.  재현성: 제출된 저장소의 `.qmd` 파일을 컴파일하여 함께 제출된 `.html` 파일과 동일한 결과가 나와야 한다.
+2.	분석의 정확성: 분석은 올바른 기술적 세부 사항을 포함하여 수행되어야 한다.
+3.	보고서의 전반적인 품질: 데이터 가공 및 분석 결과가 명확하고 자세하게 설명되어야 한다.
+4.	코드의 전반적인 품질: 코드는 체계적으로 정리되어 있어야 하며, 가독성을 높이기 위해 적절한 주석이 포함되어야 한다.
+
+#### **늦게 제출된 과제물은 받지 않는다.**
+
+# 1부  교과서 연습문제
+
+## 문제 1-1
+
+1. MDSR 6장 연습문제 6.6.9
+
+- Replicate the functionality of `make_babynames_dist()` from the mdsr package to wrangle the original tables from the babynames package.
+
+### 답안
+
+- `make_babynames_dist` 함수는 `babynames` 패키지의 `babynames` 데이터프레임과 `lifetables` 데이터프레임을 사용하여 특정 시점(2014년)에 이름별로 태어난 아이들의 수와 생존 확률을 계산하여 새로운 데이터프레임을 생성하는 함수이다.
+    - variables of lifetables
+        - `x`: 나이 (0세~110세).
+        - `lx`: 특정 나이(x)까지 살아남은 인원수 (기준 인원 100,000명당).
+        - `ex`: 해당 나이(x)에서의 기대 여명 (앞으로 몇년을 더 살 것으로 기대되는지).
+        - `year`: 해당 생존율이 기록된 출생 연도.
+    - variables of babynames
+        - `year`: 출생 연도.
+        - `sex`: 성별 (M 또는 F).
+        - `name`: 이름.
+        - `n`: 출생 수.
+
+- `?`를 사용하여 함수와 데이터프레임의 구조와 내용을 살펴보면, `make_babynames_dist` 함수는 다음과 같은 과정을 거쳐 데이터를 가공한다. (`?` 커맨드는 생략했다.)
+    - `age_today`: 현재(2014년) 기준 나이 ($2014 - $`year`).
+    - `alive_prob`: 현재까지 살아있을 확률 (`lx` / 100,000).
+    - `life_exp`: 기대 수명 (`x + ex`, 즉 현재 나이 + 남은 수명).
+    - `est_alive_today`: 오늘날 살아있을 것으로 추정되는 인원수 (`n *alive_prob`).
+    - 'approximate' : lifetables는 10년 단위로 데이터가 존재하기 때문에 `make_babynames_dist()`에서는 기본 함수인 `approx`를 사용한 `approximate` 함수를 만들어서 사용함.
+
+- 이를 참고하여 `make_babynames_dist()`의 기능을 R과 Python으로 각각 구현해보자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 나이(x)와 출생 연도(year)를 더해 2014년이 되는 데이터만 필터링하여
+# year, sex, alive_prob, age_today, life_exp 열을 가지도록 데이터 만들기
+lifetables_2014 <- lifetables %>%
+  filter(year + x == 2014) %>%
+  mutate(
+    alive_prob = lx / 100000,    # 10만 명당 생존자 수(lx)를 확률로 변환
+    age_today = x,               # 2014년 기준 나이
+    life_exp = x + ex            # 기대 수명 (현재 나이 + 남은 수명)
+  ) %>%
+  select(year, sex, alive_prob, age_today, life_exp)
+
+# 모든 출생 연도에 대해 확률을 채워주기 위해 approx 함수를 활용.
+years <- min(lifetables_2014$year):max(lifetables_2014$year) # 1900년부터 2010년까지
+
+# 남성의 연도별 생존 확률 근사 데이터
+men <- lifetables_2014 %>%
+  filter(sex == "M") %>%
+  { approx(x = .$year, y = .$alive_prob, xout = years) } %>% # approx 함수를 사용하여 연도별 생존 확률을 보간
+  as_tibble() %>% # approx 함수의 결과는 리스트 형태이므로 tibble로 변환
+  rename(year = x, alive_prob = y) %>%
+  mutate(sex = "M")
+
+# 여성의 연도별 생존 확률 근사 데이터
+women <- lifetables_2014 %>%
+  filter(sex == "F") %>%
+  { approx(x = .$year, y = .$alive_prob, xout = years) } %>%
+  as_tibble() %>%
+  rename(year = x, alive_prob = y) %>%
+  mutate(sex = "F")
+
+# 남녀 데이터를 행 기준 결합
+actuarial_interp <- bind_rows(men, women)
+
+# 데이터 결합 : actuarial_interp가 year, alive_prob, sex 열을 가지고 있고
+# babynames 데이터프레임이 year, sex, name, n, prop 열을 가지고 있으므로,
+# year과 sex를 기준으로 두 데이터프레임을 결합한다.
+MyBabynamesDist <- babynames %>%
+  inner_join(actuarial_interp, by = c("year", "sex")) %>%
+  # babynames의 각 행에 기록된 출생 수와 actuarial_interp의 alive_prob를 활용하여
+  # 연도, 이름, 성별의 조합에 대해 2014년 기준 예상 생존 인원(est_alive_today) 계산
+  mutate(
+    count_thousands = n / 1000,             # 인원수 (단위: 천 명)
+    age_today = 2014 - year,                # 2014년 기준 나이
+    est_alive_today = n * alive_prob        # 2014년 기준 예상 생존 인원
+  ) %>%
+  # 열 순서 맞추기
+  select(year, sex, name, n, prop, alive_prob, count_thousands, age_today, est_alive_today)
+
+# 결과 확인
+origin_data = make_babynames_dist()
+made_data = MyBabynamesDist
+
+# print(summary(origin_data$est_alive_today)) : python의 결과와 비교하기 위한 est_alive_today의 summary
+# min : 0, 1st Qu. : 4.966, Median : 8.929, Mean : 150.907, 3rd Qu. : 24.484, Max : 80399.051
+
+all.equal(origin_data, made_data) # TRUE가 나오면 두 데이터프레임이 동일함
+```
+
+## Python
+
+```{python}
+# Data Load
+babynames_df = bn.babynames
+lifetables_df = bn.lifetables
+
+# 나이(x)와 출생 연도(year)를 더해 2014년이 되는 데이터만 필터링하여
+# year, sex, alive_prob, age_today, life_exp 열을 가지도록 데이터 만들기
+lifetables_2014 = (
+    lifetables_df
+    .filter((pl.col("year") + pl.col("x")) == 2014)
+    .with_columns([
+        (pl.col("lx") / 100000).alias("alive_prob"),
+        pl.col("x").alias("age_today")
+    ])
+    .select(["year", "sex", "alive_prob", "age_today"])
+)
+
+# scipy의 interp1d를 사용하여 R의 approx() 함수와 동일한 기능을 수행.
+years_range = np.arange(lifetables_2014["year"].min(), lifetables_2014["year"].max() + 1)
+
+def interpolate_sex(df, sex_label):
+    subset = df.filter(pl.col("sex") == sex_label).sort("year")
+    # 연도별 생존 확률을 interpolation하는 함수 생성
+    f = interp1d(subset["year"], subset["alive_prob"], kind='linear', fill_value="extrapolate")
+    return pl.DataFrame({
+        "year": years_range.astype(np.int32),
+        "alive_prob": f(years_range),
+        "sex": sex_label
+    })
+
+# 남녀 데이터 보간 후 결합 (R의 bind_rows)
+actuarial_interp = pl.concat([
+    interpolate_sex(lifetables_2014, "M"),
+    interpolate_sex(lifetables_2014, "F")
+])
+
+# 데이터 결합 : actuarial_interp가 year, alive_prob, sex 열을 가지고 있고
+# babynames 데이터프레임이 year, sex, name, n, prop 열을 가지고 있으므로,
+# year과 sex를 기준으로 두 데이터프레임을 결합한다.
+MyBabynamesDist = (
+    babynames_df
+    .with_columns(pl.col("year").cast(pl.Int32)) # 연도를 정수로 변환
+    .join(actuarial_interp, on=["year", "sex"], how="inner") # 연도와 성별을 기준으로 결합
+    # babynames의 각 행에 기록된 출생 수와 actuarial_interp의 alive_prob를 활용하여
+    # 연도, 이름, 성별의 조합에 대해 2014년 기준 예상 생존 인원(est_alive_today) 계산
+    .with_columns([
+        (pl.col("n") / 1000).alias("count_thousands"),
+        # 이름 일치시키기
+        (2014 - pl.col("year")).alias("age_today"), 
+        (pl.col("n") * pl.col("alive_prob")).alias("est_alive_today")
+    ])
+    .select([
+        "year", "sex", "name", "n", "prop", 
+        "alive_prob", "count_thousands", "age_today", "est_alive_today"
+    ])
+)
+
+# 결과 확인
+# R에서의 결과
+# min : 0, 1st Qu. : 4.966, Median : 8.929, Mean : 150.907, 3rd Qu. : 24.484, Max : 80399.051
+summary_stats = MyBabynamesDist.select("est_alive_today").describe()
+
+result_output = f"""
+Summary of Estimated Alive Today (Python):
+{summary_stats}
+"""
+print(result_output)
+```
+
+:::
+
+---
+
+2. MDSR 6장 연습문제 6.6.10
+
+- Consider the number of home runs hit (HR) and home runs allowed (HRA) for the Chicago Cubs (CHN) baseball team. Reshape the Teams data from the Lahman package into “long” format and plot a time series conditioned on whether the HRs that involved the Cubs were hit by them or allowed by them.
+
+### 답안
+
+- Teams 데이터를 이용해서 연도, 친 홈런(HR) 또는 허용한 홈런(HRA)이 저장되는 `HR_Type`, 그리고 그 수인 `Count` 열을 가지는 데이터프레임을 생성하고, 이를 이용해서 시각화를 진행했다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# Data Wrangling
+cubs_hr_long <- Teams %>%
+  # Chicago Cubs(CHN) 데이터만 필터링
+  filter(teamID == "CHN") %>%
+  # 연도(yearID), 친 홈런(HR), 허용한 홈런(HRA) 열만 선택
+  select(yearID, HR, HRA) %>%
+  # Long format으로 변환
+  pivot_longer(
+    cols = c(HR, HRA),          # 변환할 열 선택
+    names_to = "HR_Type",       # HR인지 HRA인지 기록하는 열
+    values_to = "Count"         # HR 또는 HRA의 수
+  )
+
+print(head(cubs_hr_long %>% arrange("yearID")))
+```
+
+## Python
+
+```{python}
+import polars as pl
+
+# Data Load
+_Teams = pylahman.Teams()  
+teams = pl.from_pandas(_Teams)
+
+# Data Wrangling
+cubs_hr_long = (
+    teams
+    .filter(pl.col("teamID") == "CHN") # Chicago Cubs(CHN) 데이터만 필터링
+    .select(["yearID", "HR", "HRA"])
+    .unpivot(
+        index="yearID",
+        on=["HR", "HRA"],
+        variable_name="HR_Type", # HR인지 HRA인지 기록하는 열
+        value_name="Count" # HR 또는 HRA의 수
+    )
+)
+# 오름차순으로 정렬
+print(cubs_hr_long.sort("yearID").head(6))
+```
+
+:::
+
+---
+
+::: {.panel-tabset}
+## R
+
+```{r}
+# Time series Visualization
+ggplot(data = cubs_hr_long, aes(x = yearID, y = Count, color = HR_Type)) +
+  geom_line(size = 1) +        
+  labs(
+    title = "Chicago Cubs: Home Runs Hit vs. Allowed Over Time",
+    x = "Year",
+    y = "Number of Home Runs",
+    color = "Type"
+  ) +
+  theme_minimal()
+```
+
+## Python
+
+```{python}
+# Time series Visualization
+cubs_plot = (
+    ggplot(cubs_hr_long, aes(x="yearID", y="Count", color="HR_Type"))
+    + geom_line(size=1)
+    + labs(
+        title="Chicago Cubs: Home Runs Hit vs. Allowed Over Time",
+        x="Year",
+        y="Number of Home Runs",
+        color="Type"
+    )
+    + theme_minimal()
+)
+
+cubs_plot
+```
+
+:::
+
+## 문제 1-2
+
+1. MDSR 7장 연습문제 7.9.5
+
+- Use data from the `NHANES` package to create a set of scatterplots of Pulse as a function of Age, BMI, TVHrsDay, and BPSysAve to create a figure like the last one in the chapter. Be sure to create appropriate annotations (source, survey name, variables being displayed). What do you conclude?
+
+### 답안
+
+- 7장에서 다루었던 `bmi_plot` 함수를 참고하여 `pulse_plot` 함수를 정의하고, 이를 활용하여 심박수(Pulse)를 연령(Age), 체질량지수(BMI), 하루 평균 TV 시청 시간(TVHrsDay), 수축기 혈압(BPSysAve)를 종속변수로 하여 산점도를 그렸다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# pulse_plot 함수 정의
+pulse_plot <- function(.data, x_var) {
+  p <- ggplot(.data, aes(y = Pulse, x = .data[[x_var]])) +
+    geom_jitter(alpha = 0.3) + 
+    geom_smooth() +
+    labs(
+      title = paste("Pulse by", x_var, "in NHANES Dataset"),
+      x = x_var,
+      caption = "US National Center for Health Statistics (NCHS)"
+    ) +
+    theme_minimal()
+
+  return(p)
+}
+
+# purrr::map을 활용한 Visualization
+c("Age", "BMI", "TVHrsDay", "BPSysAve") %>%
+  map(pulse_plot, .data = NHANES) %>%
+  patchwork::wrap_plots(ncol = 2)
+```
+
+## Python
+
+```{python}
+# Data Load
+NHANES = pl.read_csv('data/NHANES.csv',
+    schema_overrides={
+        "Age": pl.Float64, 
+        "BMI": pl.Float64
+    },
+    null_values=["NA", " ", "null"],
+    infer_schema_length=None
+)
+
+#  pulse_plot 함수 정의
+def pulse_plot(data, x_var):
+    p = (
+        ggplot(data, aes(y="Pulse", x=x_var))
+        + geom_jitter(alpha=0.3)
+        + geom_smooth(method="lowess", color="blue")
+        + labs(
+            title=f"Pulse by {x_var} in NHANES Dataset",
+            x=x_var
+        )
+        + theme_minimal()
+    )
+    return p
+
+variables = ["Age", "BMI", "TVHrsDay", "BPSysAve"]
+plots = [pulse_plot(NHANES, var) for var in variables]
+
+# plotnine 객체를 patchworklib 객체로 변환
+p1, p2, p3, p4 = [pw.load_ggplot(p, figsize=(4, 3)) for p in plots]
+
+# 2x2 그리드로 배치
+final_plot = (p1 | p2) / (p3 | p4) 
+
+# 파일 저장 (그림이 계속 깨져서 사진 파일로 저장한 다음 로드 시켰습니다)
+# jupyter notebook에서는 제대로 나옴
+output_file = "figure/pulse_analysis_plot.png"
+final_plot.savefig(output_file, dpi=300) # 그래프 사진 파일로 저장
+```
+
+<img src="figure/pulse_analysis_plot.png" width="600">
+
+:::
+
+- 산점도 분석 결과, 심박수(Pulse)는 연령(Age)과 수축기 혈압(BPSysAve)이 증가할수록 전반적으로 미세하게 감소하는 경향을 보인다.
+- BPSysAve가 커질 수록 추세선이 급격히 내려가는 것처럼 보이지만 이는 충분한 샘플이 있지 않기 때문에, 급격히 감소하는 추세로 보긴 어렵다.
+- 반면, 체질량지수(BMI)가 높을수록 심박수도 함께 높아지는 뚜렷한 양의 상관관계를 나타내고 있다.
+- 한편, 하루 평균 TV 시청 시간(TVHrsDay)은 심박수와 유의미한 연관성을 보이지 않는다.
+
+
+---
+
+2. MDSR 7장 연습문제 7.9.6
+
+- Use the `group_modify()` function and the Lahman data to replicate one of the baseball records plots (http://tinyurl.com/nytimes-records) from the The New York Times.
+
+### 답안
+
+- NY Times의 plot 중에서 타율 데이터를 `group_modify()`를 활용하여 시각화하는 코드를 구현해보자.
+- NY Time에 나온 plot에 년도별 기록된 샘플이 대부분 30개 이하이고 년도의 범위는 1901년부터 2014년까지이고 가장 타율이 낮은 선수는 0.28의 타율을 기록했다.
+- 따라서 이를 모사하기 위해 `filter` 함수를 사용하여 x축과 y축 범위에 맞는 데이터만 필터링하였다. ( 완벽히 같지는 않고 대략적인 모사를 코드에 반영하였다. )
+- 모든 데이터에 대한 plot을 그리는 것은 시각적으로 복잡해 보이기 때문에 이전 과제를 참고하여 타수 500이상인 선수들에 대해서만 plot을 그렸다.
+- 최대한 `group_by`와 `group_modify`만 사용하여 데이터셋을 만들려고 했으나, 여러 시도를 해본 결과 `filter` 함수를 `get_ba` 함수 안에 넣어서 사용하면 시간이 굉장히 오래 걸리기 때문에 부득이하게 `group_modify` 적용 후 `filter` 함수를 사용하였다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 함수 정의 : 단일 시즌 합산 및 타율 계산
+get_ba <- function(x) {
+  x %>%
+    summarize(
+      H = sum(H, na.rm = TRUE),
+      AB = sum(AB, na.rm = TRUE),
+      teamID = paste(unique(teamID), collapse = ", ") # 하나의 연도에 소속팀 2개인 경우
+    ) %>%
+    mutate(BA = H / AB)
+}
+
+# group_modify()로 타율 계산 및 필터링
+BA_data <- Batting %>%
+  group_by(playerID, yearID) %>%
+  group_modify(~ get_ba(.x))
+  
+# group_modify()가 오래걸려서 코드 수정을 위해 나눠서 작업 수행  
+BA_data <- BA_data %>%
+  filter(yearID >= 1901) %>% # 1900년 이후 데이터만 사용
+  filter(yearID <= 2014) %>% # 2015년 이전 데이터만 사용
+  filter(AB >= 500) %>% # 타수 500이상
+  filter(BA >= 0.25) %>% # 타율 0.25 이상
+  ungroup() # 상위 선수 추출을 위해 ungroup()
+
+# 역대 단일 시즌 타율 상위 3개 추출
+top_records <- BA_data %>%
+  slice_max(BA, n = 3) %>%
+  left_join(People %>% select(playerID, nameLast), by = "playerID")
+
+# 텍스트를 달기 위한 데이터: 상위 3개 기록 중 선수별 가장 높은 1개만 남기고 라벨 텍스트 생성
+# 한 선수가 상위 3개 기록에서 2번 등장할 수 있음
+top_labels <- top_records %>%
+  group_by(playerID) %>%
+  slice_max(BA, n = 1, with_ties = FALSE) %>% # 선수별 최고 기록 1개만 추출
+  ungroup() %>%
+  # 원하시는 형태의 텍스트 라벨 생성 (예: Ruth | 타율 : 0.393 | 년도: 1923 | 소속팀: NYA)
+  mutate(
+    label_text = sprintf("%s | %.3f | %d | %s", 
+                         nameLast, BA, yearID, teamID)
+  )
+
+# Visualization
+ggplot(BA_data, aes(x = yearID, y = BA, group = playerID)) +
+
+  geom_point(alpha = 0.1, size = 1, color = "darkgray") +
+  # 최상위 3명 선수의 점 색상 다르게 찍기
+  geom_point(data = top_records, aes(color = nameLast), size = 2) +
+  # 최상위 3명 선수의 상세 텍스트 표시
+  geom_text(data = top_labels, 
+            aes(label = label_text, color = nameLast),
+            hjust = -0.05, vjust = 0.5, fontface = "bold", size = 3.5) +
+  labs(
+    title = "Historical Batting Average Trends (BA >= 0.25)",
+    x = "Year",
+    y = "Batting Average"
+  ) +
+  scale_x_continuous(breaks = seq(1901, 2014, 20)) +
+  scale_y_continuous(limits = c(0.23, 0.45)) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(face = "bold", size = 16)
+  )
+```
+
+## Python
+
+```{python}
+# Data Load
+Batting = pl.from_pandas(pylahman.Batting())
+People = pl.from_pandas(pylahman.People())
+
+# 함수 정의 : 단일 시즌 합산 및 타율 계산
+def get_ba(df):
+    return (
+        df.select([
+            pl.col("playerID").first(),
+            pl.col("yearID").first(),
+            pl.col("H").sum().alias("H"),
+            pl.col("AB").sum().alias("AB"),
+            pl.col("teamID").drop_nulls().unique().str.join(", ").alias("teamID")
+        ])
+        .with_columns(
+            BA = pl.col("H") / pl.col("AB")
+        )
+    )
+
+# map_groups() => group_modify() 역할
+BA_data = (
+    Batting
+    .group_by(["playerID", "yearID"])
+    .map_groups(get_ba)
+)
+
+# 데이터 필터링 진행 : 나눠서 작업
+BA_data = (
+    BA_data
+    .filter(pl.col("yearID") >= 1901)
+    .filter(pl.col("yearID") <= 2014)
+    .filter(pl.col("AB") >= 500)
+    .filter(pl.col("BA") >= 0.25)
+)
+
+# 역대 단일 시즌 타율 최상위 추출
+top_records = (
+    BA_data
+    .top_k(3, by="BA")
+    .join(People.select(["playerID", "nameLast"]), on="playerID", how="left")
+)
+
+# 최상위 기록 중 선수별 가장 높은 기록 하나만 남기고 라벨 텍스트 생성
+top_labels = (
+    top_records
+    .sort("BA", descending=True)
+    .group_by("playerID")
+    .head(1)
+    .with_columns(
+        pl.struct(["nameLast", "BA", "yearID", "teamID"])
+        .map_elements(
+            lambda x: f"{x['nameLast']} | {x['BA']:.3f} | {x['yearID']} | {x['teamID']}",
+            return_dtype=pl.Utf8
+        )
+        .alias("label_text")
+    )
+)
+
+# Visualization
+fig = (
+    ggplot(BA_data, aes(x="yearID", y="BA", group="playerID")) +
+    geom_point(alpha=0.1, size=1, color="darkgray") +
+    # 최상위 선수의 점 색상 다르게 찍기
+    geom_point(data=top_records, mapping=aes(color="nameLast"), size=1.5) +
+    # 최상위 선수의 상세 텍스트 표시
+    geom_text(data=top_labels, mapping=aes(label="label_text", color="nameLast"),
+              ha="left", va="center", nudge_x=1.5, fontweight="bold", size=5) +
+    labs(
+        title="Historical Batting Average Trends (BA >= 0.25)",
+        x="Year",
+        y="Batting Average"
+    ) +
+    scale_x_continuous(breaks=range(1901, 2015, 20)) +
+    scale_y_continuous(limits=(0.23, 0.45)) +
+    theme_minimal() +
+    theme(
+        legend_position="none",
+        panel_grid_minor=element_blank(),
+        plot_title=element_text(face="bold", size=12)
+    )
+)
+
+fig
+```
+
+:::
+
+3.  7.7절의 NHANES 분석에서의 `bmi_plot` 및 `map`을 사용한 예제에서 사용한 다음 코드를 아래와 같이 확장하라.
+    ```{r eval=FALSE}
+    c("Age", "HHIncomeMid", "PhysActiveDays", 
+  "TVHrsDay", "AlcoholDay", "Pulse") %>%
+      map(bmi_plot, .data = NHANES) %>%
+      patchwork::wrap_plots(nrow = 2, ncol = 3)
+    ```
+    -   `names()`를 사용하여 76개 변수 모두와 BMI간의 산점도 그리기
+    -   `across()`를 사용하여 수치형 변수와 BMI간의 산점도 그리기
+
+4.  (보너스 문제) 위의 예제를 `patchworklib` 패키지를 이용해서 Python으로 옮겨 보아라.
+
+### 답안
+
+- 4번 문제는 3번 문제의 python 버전이므로 이를 동시에 구현해보자.
+- 그래프가 많기 때문에 렌더링이 오래걸려서 그래프를 사진 파일로 저장한 다음 로드시켰다.
+- 먼저 76개 변수 모두와 BMI간의 산점도 그려보자.
+
+::: {.panel-tabset}
+
+## R (3번)
+
+```{r}
+# bmi_plot 정의 : 수업 참고
+bmi_plot <- function(.data, x_var) {
+  ggplot(.data, aes(y = BMI)) +
+    aes_string(x = x_var) +
+    geom_jitter(alpha = 0.3) +
+    geom_smooth() +
+    labs(
+      title = paste("BMI by", x_var, "in NHANES Dataset"),
+      caption = "US National Center for Health Statistics (NCHS)"
+    )
+}
+
+#  names()를 사용하여 모든 변수(76개) VS BMI 산점도 그리기 (19 x 4)
+# 전체 변수명 추출
+all_vars <- names(NHANES)
+
+# 그래프 76 = 19x4로 배치
+plot_all <- all_vars %>%
+  map(bmi_plot, .data = NHANES) %>%
+  patchwork::wrap_plots(nrow = 19, ncol = 4)
+
+# 화면에 출력하지 않고 PNG 파일로 저장
+# R에서 출력하면 그래프가 깨져서 사진 파일로 저장한 다음 로드
+ggsave("figure/3R_plot_all.png", plot = plot_all, width = 15, height = 50, limitsize = FALSE)
+```
+
+<img src="figure/3R_plot_all.png" width="600">
+
+## Python (4번)
+
+```{python}
+# bmi_plot 정의 : 수업 참고
+def bmi_plot(data, x_var):
+    p = (
+        ggplot(data, aes(y="BMI", x=x_var)) 
+        + geom_jitter(alpha=0.3)
+        + geom_smooth(method="lowess", color="blue")      
+        + labs(
+            title=f"BMI by {x_var} in NHANES",
+            caption="US National Center for Health Statistics (NCHS)"
+        )
+    )
+    return p
+
+# 그래프 nrow x ncol 형태로 묶어주는 함수
+def wrap_plots(plot_list, nrow, ncol, figsize=(3, 3)):
+    pw_plots = [pw.load_ggplot(p, figsize=figsize) for p in plot_list]
+    
+    rows = []
+    idx = 0
+    # 행(row) 단위로 먼저 그래프를 가로(|)로 병합
+    for r in range(nrow):
+        if idx >= len(pw_plots): break
+        current_row = pw_plots[idx]
+        idx += 1
+        for c in range(1, ncol):
+            if idx >= len(pw_plots): break
+            current_row = current_row | pw_plots[idx]
+            idx += 1
+        rows.append(current_row)
+        
+    # 완성된 행들을 세로(/)로 병합
+    grid = rows[0]
+    for r in rows[1:]:
+        grid = grid / r
+        
+    return grid
+
+# Data Load
+NHANES = pl.read_csv('data/NHANES.csv',
+    null_values=["NA", " ", "null", ""], 
+    infer_schema_length=None
+)
+
+#  모든 변수(76개)와 BMI 간의 산점도 그리기 (19 x 4 배열)
+all_vars = NHANES.columns
+plot_all_list = [bmi_plot(NHANES, var) for var in all_vars]
+
+# 19 x 4로 배치
+grid_all = wrap_plots(plot_all_list, nrow=19, ncol=4, figsize=(3.75, 2.6))
+grid_all.savefig("figure/3P_plot_all.png", dpi=300)
+```
+
+<img src="figure/3P_plot_all.png" width="600">
+
+:::
+
+- `across()`를 사용하여 수치형 변수와 BMI간의 산점도 그리기
+
+::: {.panel-tabset}
+
+## R (3번))
+
+```{r}
+#  across()를 사용하여 수치형 변수(45개)와 BMI 간의 산점도 그리기 (5 x 9 배열)
+# summarise()와 across()를 활용하여 수치형 변수(where(is.numeric))에 대해서만 그래프 생성
+num_plots <- NHANES %>%
+  summarise(across(where(is.numeric), ~ list(bmi_plot(NHANES, cur_column())))) %>%
+  as.list() %>%
+  purrr::flatten()
+
+# print(length(num_plots)) # 수치형 변수 개수 확인 (45개)
+
+# patchwork를 이용해 9 x 5 배열로 배치
+plot_numeric <- num_plots %>%
+  patchwork::wrap_plots(nrow = 9, ncol = 5)
+
+# PNG 파일로 저장
+ggsave("figure/3R_plot_numeric.png", plot = plot_numeric, width = 15, height = 25, limitsize = FALSE)
+```
+
+<img src="figure/3R_plot_numeric.png" width="600">
+
+## Python (4번)
+
+```{python}
+#  수치형 변수(45개)와 BMI 간의 산점도 그리기 (9 x 5 배열)
+# 수치형 변수만 추출
+numeric_vars = NHANES.select(cs.numeric()).columns
+
+# print(f"수치형 변수 개수 확인: {len(numeric_vars)}개") # 45개
+
+# 수치형 변수들에 대해서만 그래프 리스트 생성
+plot_numeric_list = [bmi_plot(NHANES, var) for var in numeric_vars]
+
+# 9 x 5로 배치
+grid_numeric = wrap_plots(plot_numeric_list, nrow=9, ncol=5, figsize=(3, 2.7))
+grid_numeric.savefig("figure/3P_plot_numeric.png", dpi=300)
+```
+
+<img src="figure/3P_plot_numeric.png" width="600">
+
+:::
+
+## 문제 1-3
+
+1. MDSR 8장 연습문제 8.12.8
+
+- Problem 8 (Medium): A data analyst received permission to post a data set that was scraped from a social media site. The full data set included name, screen name, email address, geographic location, IP (internet protocol) address, demographic profiles, and preferences for relationships. Why might it be problematic to post a deidentified form of this data set where name and email address were removed?
+
+::: {.callout-note appearance="minimal"}
+## Answer
+이름과 이메일을 제거하는 것만으로는 충분하지 않다. IP 주소만으로 사용자의 대략적인 거주지나 직장 위치가 노출 될 수 있으며 사실상 식별가능한 정보이다. 거기에 위치 정보, 인구통계적 특성 등이 결합되면 외부 데이터(다른 SNS의 공개 프로필 등)와 대조하여 특정 개인을 식별해낼 수 있기 때문에 개인 정보 노출의 위험이 있다. 특히 관계 선호도와 같은 민감한 정보가 포함되어 있어, 재식별 시 당사자에게 심각한 개인정보 피해를 줄 위험이 크다. 따라서 이러한 데이터 셋을 게시하는 것은 매우 위험한 행위가 될 수 있다.
+:::
+
+2. MDSR 8장 연습문제 8.12.10
+
+- Problem 10 (Hard): An investigative team wants to winnow the set of variables to include in their final multiple regression model. They have 100 variables and one outcome measured for n = 250 observations.
+- They use the following procedure:
+    1. Fit each of the 100 bivariate models for the outcome as a function of a single predictor, then
+    2. Include all of the significant predictors in the overall model.
+- What does the distribution of the p-value for the overall test look like, assuming that there are no associations between any of the predictors and the outcome (all are assumed to be multivariate normal and independent). Carry out a simulation to check your answer.
+
+### 답안
+
+- 문제에서 요구하는 시뮬레이션 과정은 다음과 같다.
+    1. 101개의 변수(`Y` 포함)와 250개의 관측치를 가지는 데이터셋을 생성한다. (문제에서 특정 분포에 대한 요구사항이 없기 때문에 정규분포에서 무작위로 생성한다.)
+    2. 각 변수에 대하여 `Y`에 대한 단일 회귀분석을 수행하여 p-value를 추출한다. 
+    3. 유의수준 0.05 미만인 변수들만 선택하여 최종 다중 회귀분석을 수행한다. (문제에서 p-value에 대한 유의수준이 설정되어 있지 않지만, 일반적으로 0.05를 사용한다.)
+    4. 최종 모델의 전체 모형 유의성 검정(F-test)에서 p-value를 추출하여 저장한다.
+- 이 과정을 100번 반복하여 최종적으로 전체 모형의 p-value 분포를 시각화한다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 시뮬레이션 세팅
+set.seed(123) # 시드 고정
+n_sim <- 100
+n_obs <- 250        
+n_vars <- 100       
+overall_pvals <- numeric(n_sim) 
+
+for (i in 1:n_sim) {
+  # 정규분포에서 랜덤 샘플링
+  Y <- rnorm(n_obs)
+  X <- matrix(rnorm(n_obs * n_vars), nrow = n_obs, ncol = n_vars)
+  
+  # 개별 변수들에 대해 회귀분석 수행 후 p-value 추출
+  bivariate_pvals <- numeric(n_vars)
+  for (j in 1:n_vars) {
+    fit <- lm(Y ~ X[, j])
+    bivariate_pvals[j] <- summary(fit)$coefficients[2, 4] 
+  }
+  
+  # 유의수준 0.05 미만인 변수들만 선택
+  selected_vars <- which(bivariate_pvals < 0.05)
+  
+  # 선택된 변수들로 다중 회귀분석 수행
+  if (length(selected_vars) > 0) {
+    X_selected <- X[, selected_vars, drop = FALSE]
+    final_fit <- lm(Y ~ X_selected)
+    
+    # 전체 모형의 유의성 검정(F-test) p-value 계산
+    f_stat <- summary(final_fit)$fstatistic
+    overall_pvals[i] <- pf(f_stat[1], f_stat[2], f_stat[3], lower.tail = FALSE)
+  } else {
+    # 우연히 유의미한 변수가 하나도 나오지 않았을 경우 결측치 처리
+    overall_pvals[i] <- NA 
+  }
+}
+
+# 결측치 제거
+overall_pvals <- na.omit(overall_pvals)
+
+summary(overall_pvals) # p-value 분포 요약 통계량 확인
+```
+
+## Python
+
+```{python}
+# 시뮬레이션 세팅
+np.random.seed(123) # 시드 고정
+n_sim = 100
+n_obs = 250        
+n_vars = 100       
+overall_pvals = [] 
+
+for i in range(n_sim):
+    Y = np.random.randn(n_obs)
+    X = np.random.randn(n_obs, n_vars)
+    
+    # 개별 변수들에 대해 회귀분석 수행 후 p-value 추출
+    bivariate_pvals = np.zeros(n_vars)
+    for j in range(n_vars):
+        X_single_with_const = sm.add_constant(X[:, j])
+        fit_single = sm.OLS(Y, X_single_with_const).fit()
+        bivariate_pvals[j] = fit_single.pvalues[1]
+        
+    # 유의수준 0.05 미만인 변수들만 선택
+    selected_vars = np.where(bivariate_pvals < 0.05)[0]
+    
+    # 선택된 변수들로 다중 회귀분석 수행
+    if len(selected_vars) > 0:
+        X_selected = X[:, selected_vars]
+        
+        X_selected_with_const = sm.add_constant(X_selected)
+        final_fit = sm.OLS(Y, X_selected_with_const).fit()
+        
+        # 전체 모형의 유의성 검정(F-test) p-value 계산 및 저장
+        overall_pvals.append(final_fit.f_pvalue)
+    else:
+        # 우연히 유의미한 변수가 하나도 나오지 않았을 경우 결측치 처리
+        overall_pvals.append(np.nan)
+
+# 결측치 제거
+overall_pvals = np.array(overall_pvals)
+overall_pvals = overall_pvals[~np.isnan(overall_pvals)]
+
+# p-value 분포 요약 통계량 확인
+print(pd.Series(overall_pvals).describe())
+```
+:::
+
+- 요약 통계량 결과를 바탕으로 도출할 수 있는 결론은 다음과 같이 정리할 수 있다.
+    - 모든 독립변수가 결과 변수와 실제 관련이 없으므로, 정상적인 상황이라면 p-value는 0과 1 사이에서 균등 분포(Uniform Distribution)를 보여야 한다.
+    - 그러나, 시뮬레이션 결과를 보면 최종 다중 회귀모형의 전체 유의성 검정 p-value의 최댓값(Max)조차 약 0.05 미만으로 나타나며 모든 결과가 유의수준 0.05 미만으로 극단적으로 작게 나타난 것을 확인할 수 있다.
+    - 이는 종속변수와 실제 연관성이 전혀 없는 데이터로 모델을 구성했음에도 불구하고, 최종 모델이 통계적으로 매우 유의미하다는 제1종 오류가 도출됨을 보여준다.
+    - 100개의 무의미한 변수를 개별적으로 검정하면 순전히 우연에 의해 약 5개(5%)의 변수가 유의미한 것으로 판별되는데, 이렇게 우연히 유의성을 보인 변수들만 골라 최종 다중 회귀를 돌리면 전체 모델의 유의성(F-통계량)이 인위적으로 부풀려지게 된다.
+    - 결론적으로, 사전에 개별 p-value만을 기준으로 변수를 선택하여 최종 모델을 구축하는 이러한 방식은 심각한 통계적 왜곡을 초래하여 무의미한 모델조차 완벽한 모델처럼 보이게 만들므로 지양해야 할 분석 절차임을 시사한다.
+
+## 문제 1-4
+
+1. MDSR 9장 연습문제 9.9.4
+
+- The `NHANES` data set in the `NHANES` package includes survey data collected by the U.S. National Center for Health Statistics (NCHS), which has conducted a series of health and nutrition surveys since the early 1960s.
+    1. An investigator is interested in fitting a model to predict the probability that a female subject will have a diagnosis of diabetes. Predictors for this model include age and BMI. Imagine that only 1/10 of the data are available but that these data are sampled randomly from the full set of observations (this mechanism is called “Missing Completely at Random,” or MCAR). What implications will this sampling have on the results?
+    2. Imagine that only 1/10 of the data are available but that these data are sampled from the full set of observations such that missingness depends on age, with older subjects less likely to be observed than younger subjects (this mechanism is called “Covariate Dependent Missingness,” or CDM). What implications will this sampling have on the results?
+    3. Imagine that only 1/10 of the data are available but that these data are sampled from the full set of observations such that missingness depends on diabetes status (this mechanism is called “Non-Ignorable Non-Response,” or NINR). What implications will this sampling have on the results?
+
+### 답안
+
+- 먼저 각 문제 상황에 대한 분석 결과와 비교하기 위해 전체 데이터에 대한 회귀분석 결과를 살펴보자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# Data wrangling
+nhanes_clean <- NHANES %>%
+  filter(Gender == "female") %>%          # 여성만 필터링
+  select(Diabetes, Age, BMI) %>%          # 변수 선택
+  drop_na() %>%                           # 결측치(NA) 제거
+  mutate(
+    # 로지스틱 회귀를 위해 "Yes"를 1, "No"를 0으로 변환
+    Diabetes_binary = ifelse(Diabetes == "Yes", 1, 0)
+  )
+
+#  로지스틱 회귀분석
+baseline_model <- glm(Diabetes_binary ~ Age + BMI, 
+                      data = nhanes_clean, 
+                      family = binomial)
+
+#  결과 출력 : summary 및 accuracy
+train_probs <- predict(baseline_model, type = "response")
+train_preds <- ifelse(train_probs > 0.5, 1, 0)
+train_accuracy <- mean(train_preds == nhanes_clean$Diabetes_binary)
+
+coef_baseline <- capture.output(print(summary(baseline_model)$coefficients))
+result_baseline <- paste0(
+  "The number of samples: ", nrow(nhanes_clean), "\n\n",
+  "Summary of Regression (Baseline)\n",
+  paste(coef_baseline, collapse = "\n"), "\n\n",
+  "Train accuracy : ", round(train_accuracy * 100, 2), "%\n"
+)
+cat(result_baseline)
+```
+
+## Python
+
+```{python}
+# Data Load
+NHANES = pl.read_csv('data/NHANES.csv',
+    schema_overrides={
+        "Age": pl.Float64, 
+        "BMI": pl.Float64
+    },
+    null_values=["NA", " ", "null"],
+    infer_schema_length=None
+)
+
+# Data wrangling
+nhanes_clean = (
+    NHANES
+    .filter(pl.col("Gender") == "female")  # 여성만 필터링
+    .select(["Diabetes", "Age", "BMI"])    # 변수 선택
+    .drop_nulls()                          # 결측치(NA) 제거
+    .with_columns(
+        # 로지스틱 회귀를 위해 "Yes"를 1, "No"를 0으로 변환
+        pl.when(pl.col("Diabetes") == "Yes").then(1).otherwise(0).alias("Diabetes_binary")
+    )
+)
+
+# numpy 변환
+Y = nhanes_clean.select("Diabetes_binary").to_numpy().ravel()
+X = nhanes_clean.select(["Age", "BMI"]).to_numpy()
+
+# intercept 추가
+X_with_const = sm.add_constant(X)
+
+#  로지스틱 회귀분석
+baseline_model = sm.Logit(Y, X_with_const).fit(disp=False)
+
+#  결과 출력 : summary 및 accuracy
+train_probs = baseline_model.predict(X_with_const)
+train_preds = (train_probs > 0.5).astype(int)
+train_accuracy = np.mean(train_preds == Y)
+
+result_baseline = f"""The number of samples: {nhanes_clean.height}
+
+Summary of Regression (Baseline)
+{baseline_model.summary(xname=['Intercept', 'Age', 'BMI']).tables[1]}
+
+Train accuracy : {train_accuracy * 100:.2f}%"""
+
+print(result_baseline)
+```
+:::
+
+- 이제 1번째 상황에 대하여 회귀 분석을 진행해보자.
+- baseline 모델과 달리 학습에 사용되지 않은 데이터가 있기 때문에, accuracy를 추가로 계산한다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+#  1/10 무작위 샘플링 (MCAR 시뮬레이션) 및 데이터 분리
+set.seed(123)
+n_total <- nrow(nhanes_clean)
+n_sample <- floor(n_total / 10)
+
+# 샘플링 인덱스
+train_idx <- sample(seq_len(n_total), size = n_sample)
+
+nhanes_mcar <- nhanes_clean[train_idx, ]   # Train
+nhanes_test <- nhanes_clean[-train_idx, ]  # Test
+
+#  로지스틱 회귀분석
+mcar_model <- glm(Diabetes_binary ~ Age + BMI, 
+                  data = nhanes_mcar, 
+                  family = binomial)
+
+# Train Accuracy
+train_probs <- predict(mcar_model, newdata = nhanes_mcar, type = "response")
+train_preds <- ifelse(train_probs > 0.5, 1, 0)
+train_acc <- mean(train_preds == nhanes_mcar$Diabetes_binary)
+
+# Test Accuracy
+test_probs <- predict(mcar_model, newdata = nhanes_test, type = "response")
+test_preds <- ifelse(test_probs > 0.5, 1, 0)
+test_acc <- mean(test_preds == nhanes_test$Diabetes_binary)
+
+#  결과 출력 : summary 및 accuracy
+coef_mcar <- capture.output(print(summary(mcar_model)$coefficients))
+result_mcar <- paste0(
+  "The number of samples: ", nrow(nhanes_mcar), "\n\n",
+  "Summary of Regression (MCAR)\n",
+  paste(coef_mcar, collapse = "\n"), "\n\n",
+  "Train accuracy : ", round(train_acc * 100, 2), "%\n",
+  "Test  accuracy: ", round(test_acc * 100, 2), "%\n"
+)
+
+cat(result_mcar)
+```
+
+## Python
+
+```{python}
+#  1/10 무작위 샘플링 (MCAR 시뮬레이션) 및 데이터 분리
+np.random.seed(123)
+n_total = nhanes_clean.height
+n_sample = n_total // 10
+
+indices = np.random.permutation(n_total)
+train_idx = indices[:n_sample]
+test_idx = indices[n_sample:]
+
+nhanes_mcar = nhanes_clean[train_idx]
+nhanes_test = nhanes_clean[test_idx]
+
+# numpy 변환
+Y_train = nhanes_mcar.select("Diabetes_binary").to_numpy().ravel()
+X_train = sm.add_constant(nhanes_mcar.select(["Age", "BMI"]).to_numpy()) # intercept 추가
+
+#  모델링
+mcar_model = sm.Logit(Y_train, X_train).fit(disp=False)
+
+# Train Accuracy
+train_probs = mcar_model.predict(X_train)
+train_acc = np.mean((train_probs > 0.5).astype(int) == Y_train)
+
+# Test Accuracy
+Y_test = nhanes_test.select("Diabetes_binary").to_numpy().ravel()
+X_test = sm.add_constant(nhanes_test.select(["Age", "BMI"]).to_numpy())
+test_probs = mcar_model.predict(X_test)
+test_acc = np.mean((test_probs > 0.5).astype(int) == Y_test)
+
+#  결과 출력 : summary 및 accuracy
+result_mcar = f"""The number of samples: {nhanes_mcar.height}
+
+Summary of Regression (MCAR)
+{mcar_model.summary(xname=['Intercept', 'Age', 'BMI']).tables[1]}
+
+Train accuracy : {train_acc * 100:.2f}%
+Test  accuracy: {test_acc * 100:.2f}%"""
+print(result_mcar)
+```
+:::
+
+- 1번째 상황(MCAR)에서는 샘플링이 완전히 무작위로 이루어지기 때문에, 샘플 수가 다르다는 것을 제외하고는 baseline 모델과 유사한 결과를 기대할 수 있다.
+- 회귀분석 결과에서도 계수 추정치와 모델의 예측 성능이 원본 데이터에서 얻은 결과와 크게 다르지 않은 것을 확인할 수 있다.
+- 다만 p-value가 다소 높아지는 경향이 있는데, 이는 샘플 수가 줄어들면서 통계적 검정력이 감소하기 때문으로 해석할 수 있다. 하지만 전반적으로 MCAR 상황에서는 모델의 편향이 발생하지 않으므로, 결과의 신뢰성은 유지된다고 볼 수 있다.
+
+---
+
+- 이제 2번째 상황에 대해서 회귀분석 해보자.
+- 2번째 상황은 나이가 많을 수록 관측이 덜 되는 상황이므로, 샘플링 될 확률을 나이에 반비례하게 설정하여 샘플링을 진행한다.
+- 이를 반영하기 위해, 나이의 분위수에 따라 그룹을 나누고, 그룹별로 가중치를 할당하여 샘플링을 수행하는 방식으로 2번째 상황을 구현하자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 연령대를 10분위수 기준으로 나누기
+set.seed(123)
+nhanes_cdm_prep <- nhanes_clean %>%
+  mutate(age_group = ntile(Age, 10))
+
+# 10개 그룹에 대응하는 가중치 할당 (젊은 1그룹 10 ~ 고령 10그룹 1)
+weights <- 10:1
+nhanes_cdm_prep <- nhanes_cdm_prep %>%
+  mutate(sampling_weight = weights[age_group])
+
+# 설정한 가중치를 기반으로 학습 및 테스트 데이터 분리
+n_total <- nrow(nhanes_cdm_prep)
+n_sample <- floor(n_total / 10)
+
+train_idx <- sample(seq_len(n_total), size = n_sample, prob = nhanes_cdm_prep$sampling_weight)
+nhanes_cdm <- nhanes_cdm_prep[train_idx, ]
+nhanes_test <- nhanes_cdm_prep[-train_idx, ]
+
+#  로지스틱 회귀분석
+cdm_model <- glm(Diabetes_binary ~ Age + BMI, 
+                 data = nhanes_cdm, 
+                 family = binomial)
+
+# Train Accuracy
+train_probs <- predict(cdm_model, newdata = nhanes_cdm, type = "response")
+train_preds <- ifelse(train_probs > 0.5, 1, 0)
+train_acc <- mean(train_preds == nhanes_cdm$Diabetes_binary)
+
+# Test Accuracy
+test_probs <- predict(cdm_model, newdata = nhanes_test, type = "response")
+test_preds <- ifelse(test_probs > 0.5, 1, 0)
+test_acc <- mean(test_preds == nhanes_test$Diabetes_binary)
+
+# 결과 출력 : summary 및 accuracy
+group_counts <- capture.output(print(nhanes_cdm %>% count(age_group)))
+coef_cdm <- capture.output(print(summary(cdm_model)$coefficients))
+
+result_cdm <- paste0(
+  "Sample counts by age group:\n",
+  paste(group_counts, collapse = "\n"), "\n\n",
+  "Summary of Regression (CDM - 10 Groups)\n",
+  paste(coef_cdm, collapse = "\n"), "\n\n",
+  "Train accuracy : ", round(train_acc * 100, 2), "%\n",
+  "Test  accuracy: ", round(test_acc * 100, 2), "%\n"
+)
+
+cat(result_cdm)
+```
+
+## Python
+
+```{python}
+# 연령대를 10분위수 기준으로 나누기
+nhanes_cdm_prep = nhanes_clean.with_columns(
+    age_group = pl.col("Age").qcut(10, labels=[str(i) for i in range(1, 11)]).cast(pl.Utf8).cast(pl.Int32)
+)
+
+# 10개 그룹에 대응하는 가중치 할당 (젊은 1그룹 10 ~ 고령 10그룹 1)
+weight_map = {i: float(11 - i) for i in range(1, 11)}
+nhanes_cdm_prep = nhanes_cdm_prep.with_columns(
+    sampling_weight = pl.col("age_group").replace(weight_map)
+)
+
+# 설정한 가중치를 기반으로 학습 및 테스트 데이터 분리
+np.random.seed(123)
+n_total = nhanes_cdm_prep.height
+n_sample = n_total // 10
+
+weights = nhanes_cdm_prep["sampling_weight"].to_numpy()
+prob_dist = weights / weights.sum()
+
+indices = np.arange(n_total)
+train_idx = np.random.choice(indices, size=n_sample, replace=False, p=prob_dist)
+test_idx = np.setdiff1d(indices, train_idx)
+
+# 학습 및 테스트 데이터 모두 cdm_prep에서 추출하여 컬럼 구성 통일
+nhanes_cdm = nhanes_cdm_prep[train_idx]
+nhanes_test = nhanes_cdm_prep[test_idx]
+
+# numpy 변환
+Y_train = nhanes_cdm.select("Diabetes_binary").to_numpy().ravel()
+X_train = sm.add_constant(nhanes_cdm.select(["Age", "BMI"]).to_numpy())
+
+# 모델링
+cdm_model = sm.Logit(Y_train, X_train).fit(disp=False)
+
+# Train Accuracy
+train_probs = cdm_model.predict(X_train)
+train_acc = np.mean((train_probs > 0.5).astype(int) == Y_train)
+
+# Test Accuracy
+Y_test = nhanes_test.select("Diabetes_binary").to_numpy().ravel()
+X_test = sm.add_constant(nhanes_test.select(["Age", "BMI"]).to_numpy())
+test_probs = cdm_model.predict(X_test)
+test_acc = np.mean((test_probs > 0.5).astype(int) == Y_test)
+
+# 결과 출력 : summary 및 accuracy
+group_counts = nhanes_cdm.group_by("age_group").len().sort("age_group")
+
+result_cdm = f"""Sample counts by age group:
+{group_counts}
+
+Summary of Regression (CDM - 10 Groups)
+{cdm_model.summary(xname=['Intercept', 'Age', 'BMI']).tables[1]}
+
+Train accuracy : {train_acc * 100:.2f}%
+Test  accuracy: {test_acc * 100:.2f}%"""
+
+print(result_cdm)
+```
+:::
+
+- 2번째 상황(CDM)에서는 나이가 많을수록 관측이 덜 되는 편향된 샘플링이 이루어지기 때문에, 모델의 계수 추정치가 왜곡될 가능성이 있다.
+- 샘플링의 결과에 따라서 회귀분석 결과가 정해지는데, 해당 경우에서는 나이에 대한 계수 추정치가 크게 다르지 않지만 p-value가 다소 높아지는 경향이 나타난다. 이는 나이가 많을수록 관측이 덜 되는 상황에서, 나이와 당뇨병 사이의 실제 연관성이 존재하더라도 샘플링 편향으로 인해 통계적 검정력이 감소하기 때문으로 해석할 수 있다.
+
+---
+
+- 마지막으로 3번째 상황에 대해서 회귀분석 해보자.
+- 2번째 상황처럼, 당뇨 여부에 따라 샘플링 될 확률이 달라지는 상황이므로, 당뇨 여부별로 가중치를 할당하여 샘플링을 수행하는 방식으로 3번째 상황을 구현하자. 
+- 비율은 `정상:당뇨 = 8:2`로 설정하여, 정상인 관측치가 당뇨인 관측치보다 4배 더 많이 샘플링 되도록 한다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 당뇨 여부에 따른 가중치 할당
+set.seed(123)
+nhanes_ninr_prep <- nhanes_clean %>%
+  mutate(sampling_weight = ifelse(Diabetes_binary == 1, 2, 8))
+
+# 설정한 가중치를 기반으로 학습 및 테스트 데이터 분리
+n_total <- nrow(nhanes_ninr_prep)
+n_sample <- floor(n_total / 10)
+train_idx <- sample(seq_len(n_total), size = n_sample, prob = nhanes_ninr_prep$sampling_weight)
+nhanes_ninr <- nhanes_ninr_prep[train_idx, ]
+nhanes_test <- nhanes_ninr_prep[-train_idx, ]
+
+# 로지스틱 회귀분석
+ninr_model <- glm(Diabetes_binary ~ Age + BMI, 
+                  data = nhanes_ninr, 
+                  family = binomial)
+
+# Train Accuracy
+train_probs_ninr <- predict(ninr_model, newdata = nhanes_ninr, type = "response")
+train_acc_ninr <- mean(ifelse(train_probs_ninr > 0.5, 1, 0) == nhanes_ninr$Diabetes_binary)
+
+# Test Accuracy
+test_probs_ninr <- predict(ninr_model, newdata = nhanes_test, type = "response")
+test_acc_ninr <- mean(ifelse(test_probs_ninr > 0.5, 1, 0) == nhanes_test$Diabetes_binary)
+
+# 결과 출력 : summary 및 accuracy
+target_counts_ninr <- capture.output(print(nhanes_ninr %>% count(Diabetes_binary)))
+coef_ninr <- capture.output(print(summary(ninr_model)$coefficients))
+
+result_ninr <- paste0(
+  "Sample counts by Diabetes status:\n",
+  paste(target_counts_ninr, collapse = "\n"), "\n\n",
+  "Summary of Regression (NINR - 8:2 Ratio)\n",
+  paste(coef_ninr, collapse = "\n"), "\n\n",
+  "Train accuracy : ", round(train_acc_ninr * 100, 2), "%\n",
+  "Test  accuracy: ", round(test_acc_ninr * 100, 2), "%\n"
+)
+
+cat(result_ninr)
+```
+
+## Python
+
+```{python}
+# 당뇨 여부에 따른 가중치 할당
+nhanes_ninr_prep = nhanes_clean.with_columns(
+    sampling_weight = pl.when(pl.col("Diabetes_binary") == 1).then(2.0).otherwise(8.0)
+)
+
+# 설정한 가중치를 기반으로 학습 및 테스트 데이터 분리
+np.random.seed(123)
+n_total = nhanes_ninr_prep.height
+n_sample = n_total // 10
+
+weights_ninr = nhanes_ninr_prep["sampling_weight"].to_numpy()
+prob_dist_ninr = weights_ninr / weights_ninr.sum()
+
+indices_ninr = np.arange(n_total)
+train_idx_ninr = np.random.choice(indices_ninr, size=n_sample, replace=False, p=prob_dist_ninr)
+test_idx_ninr = np.setdiff1d(indices_ninr, train_idx_ninr)
+
+nhanes_ninr = nhanes_ninr_prep[train_idx_ninr]
+nhanes_test_ninr = nhanes_ninr_prep[test_idx_ninr]
+
+# numpy 변환
+Y_train_ninr = nhanes_ninr.select("Diabetes_binary").to_numpy().ravel()
+X_train_ninr = sm.add_constant(nhanes_ninr.select(["Age", "BMI"]).to_numpy())
+
+# 로지스틱 회귀분석
+ninr_model = sm.Logit(Y_train_ninr, X_train_ninr).fit(disp=False)
+
+# Train Accuracy
+train_acc_ninr = np.mean((ninr_model.predict(X_train_ninr) > 0.5).astype(int) == Y_train_ninr)
+
+# Test Accuracy
+Y_test_ninr = nhanes_test_ninr.select("Diabetes_binary").to_numpy().ravel()
+X_test_ninr = sm.add_constant(nhanes_test_ninr.select(["Age", "BMI"]).to_numpy())
+test_acc_ninr = np.mean((ninr_model.predict(X_test_ninr) > 0.5).astype(int) == Y_test_ninr)
+
+# 결과 출력 : summary 및 accuracy
+target_counts_ninr = nhanes_ninr.group_by("Diabetes_binary").len().sort("Diabetes_binary")
+
+result_ninr = f"""Sample counts by Diabetes status:
+{target_counts_ninr}
+
+Summary of Regression (NINR - 8:2 Ratio)
+{ninr_model.summary(xname=['Intercept', 'Age', 'BMI']).tables[1]}
+
+Train accuracy : {train_acc_ninr * 100:.2f}%
+Test  accuracy: {test_acc_ninr * 100:.2f}%"""
+
+print(result_ninr)
+```
+:::
+
+- 3번째 상황(NINR)에서는 당뇨 여부에 따라 샘플링이 달라지는 편향된 샘플링이 이루어지기 때문에, 모델의 계수 추정치가 왜곡될 가능성이 있다.
+- 해당 샘플링 결과에서도 다른 상황에 비해서 계수 추정치의 차이가 보이고, p-value가 높아지는 경향이 나타난다. 이는 당뇨 여부에 따라 샘플링이 달라지는 상황에서, 당뇨병과 나이 또는 BMI 사이의 실제 연관성이 존재하더라도 샘플링 편향으로 인해 통계적 검정력이 감소하기 때문으로 해석할 수 있다.
+
+---
+
+
+2. MDSR 9장 연습문제 9.9.7
+
+- The `Whickham` data set in the `mosaicData` package includes data on age, smoking, and mortality from a one-in-six survey of the electoral roll in Whickham, a mixed urban and rural district near Newcastle upon Tyne, in the United Kingdom. The survey was conducted in 1972–1974 to study heart disease and thyroid disease. A follow-up on those in the survey was conducted 20 years later. Describe the association between smoking status and mortality in this study. Be sure to consider the role of age as a possible confounding factor.
+
+### 답안
+
+- 먼저 문제에서 요구한대로, 흡연 여부와 사망률의 관계를 연령을 고려하지 않고 분석해보자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# Data Load
+data(Whickham)
+
+# 전체 데이터에서 연령을 고려하지 않은 흡연 여부와 사망률 관계 분석
+overall_summary <- Whickham %>%
+  count(smoker, outcome) %>%
+  group_by(smoker) %>%
+  mutate(mortality_rate = n / sum(n)) %>%
+  filter(outcome == "Dead")
+
+print(overall_summary)
+```
+
+## Python
+
+```{python}
+# Data Load
+Whickham = pl.read_csv('data/Whickham.csv')
+
+# 전체 데이터에서 연령을 고려하지 않은 흡연 여부와 사망률 관계 분석
+overall_summary = (
+    Whickham
+    .group_by(['smoker', 'outcome'])
+    .agg(pl.len().alias('n'))  # 각 그룹의 빈도수 계산
+    .with_columns(
+        mortality_rate = pl.col('n') / pl.col('n').sum().over('smoker')
+    )
+    .filter(pl.col('outcome') == 'Dead')
+)
+
+print(overall_summary)
+```
+:::
+
+- 아무런 제약 조건 없이 흡연 여부로 사망률을 비교하면, 흡연자보다 비흡연자의 사망률이 더 높게 나타나는 결과가 도출되었다.
+- 이제 문제에서 제시한대로 연령을 범주화하여 교란 요인을 통제해보자. 
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 먼저 나이에 대한 min, max 및 사분위수를 계산해보자.
+# print(summary(Whickham$age))
+# min : 18, 1st Qu. : 32, median : 46, 3rd Qu. : 61, max : 84
+
+# 연령을 범주화하여 교란 요인 통제
+# 요약 통계량의 사분위수를 기준으로 4개 그룹으로 연령대 생성
+Whickham_stratified <- Whickham %>%
+  mutate(age_group = case_when(
+    age <= 32 ~ "18-32",
+    age <= 46 ~ "33-46",
+    age <= 61 ~ "47-61",
+    TRUE ~ "62+"
+  ))
+
+# 연령대별 흡연 여부에 따른 사망률 계산
+stratified_summary <- Whickham_stratified %>%
+  count(age_group, smoker, outcome) %>%
+  group_by(age_group, smoker) %>%
+  mutate(mortality_rate = n / sum(n)) %>%
+  filter(outcome == "Dead")
+
+print(stratified_summary)
+```
+
+## Python
+
+```{python}
+# 먼저 나이에 대한 min, max 및 사분위수를 계산해보자.
+# print(Whickham.select(pl.col('age')).describe())
+# min : 18.0, 1st Qu. : 32.0, median : 46.0, 3rd Qu. : 61.0, max : 84.0
+
+# 연령을 범주화하여 교란 요인 통제
+# 요약 통계량의 사분위수를 기준으로 4개 그룹으로 연령대 생성
+Whickham = Whickham.with_columns(
+    pl.when(pl.col('age') <= 32).then(pl.lit('18-32'))
+    .when(pl.col('age') <= 46).then(pl.lit('33-46'))
+    .when(pl.col('age') <= 61).then(pl.lit('47-61'))
+    .otherwise(pl.lit('62+'))
+    .alias('age_group')
+)
+
+# 연령대별 흡연 여부에 따른 사망률 계산
+stratified_summary = (
+    Whickham
+    .group_by(['age_group', 'smoker', 'outcome'])
+    .agg(pl.len().alias('n'))
+    .with_columns(
+        # age_group과 smoker 두 가지 기준으로 그룹화하여 비율 계산
+        mortality_rate = pl.col('n') / pl.col('n').sum().over(['age_group', 'smoker'])
+    )
+    .filter(pl.col('outcome') == 'Dead')
+    .sort(['age_group', 'smoker']) # 결과를 보기 좋게 정렬
+)
+
+print(stratified_summary)
+```
+:::
+
+- 분석 결과 33-46세 그룹과 47-61세 그룹에서는 흡연자의 사망률이 비흡연자보다 높게 나타나는 경향이 보인다.
+- 먼저 18-32세 그룹은 관측 수가 적어서 사망률의 차이가 명확하게 드러나지 않는 것으로 보인다.
+- 62세 이상 그룹에서는 비흡연자의 사망률이 더 높게 나타나는 결과가 도출되었는데, 이는 고령자에서 다른 건강 문제들이 사망에 더 큰 영향을 미칠 수 있기 때문에 이러한 결과가 도출되었다고 생각한다.
+- 특히 62세 이상 그룹에서 비흡연자의 수가 전체 인원에서 상당 수를 차지하고 있기 때문에 연령을 고려하지 않은 분석에서 비흡연자의 사망률이 더 높게 나타난 것으로 보인다.
+- 따라서 연령을 고려하지 않은 분석에서는 흡연과 사망률 사이의 관계가 왜곡되어 나타날 수 있으며, 연령을 범주화하여 분석함으로써 흡연과 사망률 사이의 실제 관계를 더 명확하게 이해할 수 있다.
+
+# 2부  데이터 분석 실무
+
+### 스테로이드 시대 (계속)
+
+미국 메이저리그 야구(MLB)에서 1990년대 중반에서 2000년대 초반의 기간은 선수들의 운동수행능력 향상 약물(performance-enhancing drugs, 이하 PEDs) 사용이 만연해 있던 시기로 알려져 있다. 본 과제에서는 해당 시기에 PEDs의 사용이 실제 선수들의 경기력에 영향을 미쳤다는 증거를 통계적으로 찾을 수 있는지 알아본다. 데이터는 Lahman 패키지(`Lahman` in R, `pylahman` in Python)를 사용한다. 
+
+### 분석 관련 공통 지침
+
+1.	관측단위(observational unit)는 `playerID`와 `yearID`의 고유한 조합으로 한다. 즉, 데이터프레임의 각 행은 한 선수의 특정 연도에 해당해야 하고(예: 2019년 류현진), 한 선수의 특정 연도가 두 번 이상 나타나서는 안 된다. 이적을 한 경우 원자료에서는 두 번 이상 나타날 수 있으므로 주의해야 한다.
+2.	데이터 분석을 하는 중에 필요한 경우 pivoting으로 각 행이 한명의 선수에 해당하는 wide format data를 만들어서 연도간 비교를 하는 것은 허용한다.
+
+
+## 문제 2-1
+
+먼 과거 (1982-1993), 스테로이드 시대 (1994-2005), 최근 (2006-2025) 동안 타율(`BA = H/AB`로 계산)이 어떻게 다른지 비교해보자. `AB > 30`인 관측치만 사용한다.
+
+a.  3개 기간 동안의 타율 분포를 시각화하라. 각 시기별 분포가 정규분포를 따른다고 할 수 있는가? 
+
+b.  3개 기간 동안 평균 타율의 차이를 정규분포를 가정한 선형모형을 이용하여 검정하라. 사용된 코딩행렬은 이들 기간의 순서가 있음을 반영하여야 한다. 모형적합과 추론 결과에 대해 해석하라. 특히 적합된 회귀 계수들의 값에 대한 해석, 가설검정 결과에 대한 해석, 그리고 구간추정치 계산을 수행하여야 한다. 
+
+c.  b항과 같은 분석을 하되 정규분포를 가정한 추론이 아닌 부트스트래핑에 의한 추론을 실시하라. 특히 적합된 회귀 계수들에 대한 구간추정치를 계산하고 b항의 결과와 비교하라. 
+
+*답안 작성시 고려할 점*. a항에서 시각화한 각 시기별 분포를 생각할 때, b항에서 사용한 정규분포 가정은 타당하다고 할 수 있는가? b항과 c항에서 얻은 구간추정치가 유사하다면 그 이유는 무엇인가?
+
+### 답안
+
+- 먼저 3개 기간 동안의 타율 분포를 시각화해보자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 필요한 패키지 로드
+library(Lahman)
+library(dplyr)
+library(ggplot2)
+library(boot)
+
+# Data wrangling
+batting_df <- Batting %>%
+  filter(yearID >= 1982) %>% 
+  group_by(playerID, yearID) %>%
+  summarise(
+    AB = sum(AB, na.rm = TRUE),
+    H = sum(H, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(AB > 30) %>%
+  mutate(
+    BA = H / AB,
+    # 시기 분류
+    period = case_when(
+      yearID <= 1993 ~ "1_Pre",
+      yearID <= 2005 ~ "2_Steroid",
+      TRUE ~ "3_Post"
+    ),
+    # 다항 코딩(Polynomial contrast)을 위해 순서가 있는 요인(Ordered factor)으로 변환
+    period = factor(period, levels = c("1_Pre", "2_Steroid", "3_Post"), ordered = TRUE)
+  )
+
+# 시기별 타율 분포 시각화
+ggplot(batting_df, aes(x = BA, fill = period)) +
+  geom_density(alpha = 0.5) +
+  facet_grid(period ~ .) + # 그래프 세로로 붙이기
+  labs(
+    title = "Distribution of Batting Average by Period",
+    x = "Batting Average (BA)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",                  # 범례 생략
+    plot.title = element_text(hjust = 0.5, face = "bold", margin = margin(b = 15)),
+    strip.text = element_text(face = "bold", size = 11) # 분할된 그래프의 제목 스타일
+  )
+```
+
+## Python
+
+```{python}
+# Data Load
+batting = pl.from_pandas(pylahman.Batting())
+
+# 순서 정의
+period_levels = ["1_Pre", "2_Steroid", "3_Post"]
+
+# Data Wrangling
+batting_df = (
+    batting
+    .filter(pl.col("yearID") >= 1982)
+    .group_by(["playerID", "yearID"])
+    .agg([
+        pl.col("AB").sum(),
+        pl.col("H").sum()
+    ])
+    .filter(pl.col("AB") > 30)
+    .with_columns(
+        BA=(pl.col("H") / pl.col("AB")),
+        period=pl.when(pl.col("yearID") <= 1993).then(pl.lit("1_Pre"))
+              .when(pl.col("yearID") <= 2005).then(pl.lit("2_Steroid"))
+              .otherwise(pl.lit("3_Post"))
+    )
+    # Pandas의 set_categories 대신 Polars의 Enum을 사용하여 순서가 있는 범주형으로 즉시 캐스팅
+    .with_columns(
+        pl.col("period").cast(pl.Enum(period_levels))
+    )
+)
+
+# Visualization
+plot = (
+    ggplot(batting_df.to_pandas(), aes(x="BA", fill="period"))
+    + geom_density(alpha=0.5)
+    + facet_wrap("~period", ncol=1)
+    + labs(
+        x="Batting Average (BA)",
+        y="Density",
+        title="Distribution of Batting Average by Period"
+    )
+    + theme_light()
+)
+
+plot
+```
+:::
+
+- 시각화 결과를 보면, 각 시기별 타율 분포가 완벽한 대칭 구조로 보기 힘들기 때문에 정규분포를 따르지는 않는 것으로 보인다.
+- 특히 2_Steroid 시기의 분포는 다른 시기에 비해 약간 오른쪽으로 치우쳐 있는 경향이 보이며, 특히 0.300 이상의 타율을 보이는 사례가 많이 나타나는 것으로 보인다.
+- 이제 시기별 평균 타율의 차이를 정규분포를 가정한 선형모형을 이용하여 검정해보자.
+- 기존의 `lm()` 함수를 순서형 변수에 대해서 적합시키게 되면, 기본적으로 순서형 변수에 대해서는 직교 다항 행렬(orthogonal polynomial matrix)을 사용한다.
+- 반응변수는 타율 `BA`이고 설명변수는 앞에서 정의한 순서형 세 기간이다. 세 수준에 대응하는 직교다항 코딩에서는 1차(선형)·2차(이차) 항만 모형에 들어간다.
+- 적합 뒤에는 실제로 쓰인 contrast 행렬을 확인하고, `summary`로 계수별 t검정, `confint`로 95% 신뢰구간, `anova`로 기간 요인 전체의 유의성을 살펴보자. 
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 모델 적합
+fit_ba <- lm(BA ~ period, data = batting_df)
+
+# 직교다항 코딩행렬 확인
+BA_contrast <- contrasts(batting_df$period)
+
+# Summary
+BA_summary <- summary(fit_ba)
+
+# 신뢰구간 계산
+BA_ci <- confint(fit_ba, level = 0.95)
+
+# ANOVA
+BA_anova <- anova(fit_ba)
+
+# 결과 출력
+result_ba <- paste0(
+  "Contrast matrix (period, contr.poly):\n",
+  paste(capture.output(BA_contrast), collapse = "\n"), "\n\n",
+  "Summary of lm(BA ~ period):\n",
+  paste(capture.output(BA_summary), collapse = "\n"), "\n\n",
+  "95% CI for coefficients:\n",
+  paste(capture.output(BA_ci), collapse = "\n"), "\n\n",
+  "F-statistics = ", BA_anova$F[1], "\n"
+)
+cat(result_ba)
+```
+
+## Python
+
+```{python}
+import pandas as pd
+import statsmodels.formula.api as smf
+from statsmodels.stats.anova import anova_lm
+from patsy import dmatrix
+
+# 앞 청크에서 만든 Polars `batting_df`를 그대로 쓰고, 선형모형에 넣을 열만 고른다.
+ba_for_model = batting_df.select(["BA", "period"])
+
+# statsmodels·patsy는 Polars를를 직접 받지 않으므로, pandas로 변환 후 진행
+pd_ba = ba_for_model.to_pandas()
+pd_ba["period"] = pd.Categorical(pd_ba["period"], categories=period_levels, ordered=True)
+
+# 모델 적합
+fit_ba = smf.ols("BA ~ C(period, Poly)", data=pd_ba).fit()
+
+# 직교다항 코딩행렬 확인 (기간 수준별 다항 대비값; R의 contrasts(period)에 대응)
+Z_poly = dmatrix("0 + C(period, Poly)", pd_ba, return_type="dataframe")
+BA_contrast = (
+    pd.concat([pd_ba[["period"]].reset_index(drop=True), Z_poly.reset_index(drop=True)], axis=1)
+    .drop_duplicates(subset=["period"])
+    .sort_values("period")
+    .to_string()
+)
+
+# Summary
+BA_summary = fit_ba.summary().as_text()
+
+# 신뢰구간 계산
+BA_ci = fit_ba.conf_int(alpha=0.05)
+
+# ANOVA
+BA_anova = anova_lm(fit_ba, typ=2)
+BA_F_stat = BA_anova["F"].dropna().iloc[0]
+
+# 결과 출력
+result_ba = (
+    "Contrast matrix (period, contr.poly):\n"
+    + BA_contrast
+    + "\n\nSummary of OLS(BA ~ C(period, Poly)):\n"
+    + BA_summary
+    + "\n\n95% CI for coefficients:\n"
+    + BA_ci.to_string()
+    + "\n\nF-statistics = "
+    + str(BA_F_stat)
+    + "\n"
+)
+print(result_ba)
+```
+:::
+
+- 직교다항 코딩행렬은 세 기간을 등간격 순서로 놓았을 때의 선형(`.L`)·이차(`.Q`) 대비 가중치를 보여 준다.
+- `period.L`의 계수는 음수이고 p값이 매우 작아, 기간 순서를 따라 잡은 선형 성분만으로도 평균 타율에 차이가 있음을 시사한다. 95% 신뢰구간 [-0.00374, -0.00132]이 0을 포함하지 않으므로, 정규오차 가정 하에서 선형 다항항은 통계적으로 유의하다.
+- `period.Q`의 계수도 음수이며 p값이 2×10⁻¹⁶ 미만으로 더 강하게 유의하고, 신뢰구간도 0을 벗어난다. 이는 세 시기 평균 타율의 차이가 선형적인 패턴보다는 이차 곡선의 형태로 나타난다는 뜻으로 해석할 수 있다(구체적 방향은 그룹별 표본 평균과 함께 보는 것이 좋다).
+- 분산분석에서 기간 요인에 대한 F=76.27 (df=2), p < 2.2×10⁻¹⁶이므로, 두 다항항을 묶어 볼 때 세 기간의 평균 타율이 동일하다는 귀무가설은 기각된다. 다만 $R^2 \approx 0.006$으로, 기간만으로는 선수–연도별 타율 변동의 극히 일부만 설명되며 다른 통제 요인이 있을 것으로 예상된다.
+- a항에서 시각화한 각 시기별 분포를 고려할 때, b항에서 전제한 오차항의 정규분포 가정이 엄밀한 의미에서 완벽히 타당하다고 보기는 어렵다. 타율은 본질적으로 0과 1 사이로 제한된 비율 데이터이므로, 특정 구간(예: 0.200~0.300)에 데이터가 크게 밀집되어 완벽한 좌우 대칭의 종 모양을 띠기보다는 비대칭성(왜도)을 보이거나 양 극단에 이상치가 존재할 가능성이 높기 때문이다.
+
+---
+
+- 이제 bootstrap 방법으로 b항과 같은 분석을 해보자. (타율 평균 차이에 대한 신뢰구간을 계산)
+- 반복 횟수는 1000번으로 두고, 매 반복마다 관측을 복원 추출한 표본에 모형을 다시 적합하여 절편·`period.L`·`period.Q` 계수를 저장한다.
+- 저장된 계수의 분포에서 **백분위수 2.5%, 97.5%**를 취해 각 계수의 95% 신뢰구간을 만들고, b항에서의 신뢰구간과 비교한다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# Baseline model
+fit_ref <- lm(BA ~ period, data = batting_df)
+nm <- names(coef(fit_ref))
+p <- length(nm)
+ci_norm <- confint(fit_ref, level = 0.95)
+
+# 시뮬레이션 세팅
+set.seed(123)
+n_sim <- 1000
+n_obs <- nrow(batting_df)
+boot_coef <- matrix(NA_real_, nrow = n_sim, ncol = p, dimnames = list(NULL, nm))
+
+for (i in seq_len(n_sim)) {
+  boot_idx <- sample.int(n_obs, n_obs, replace = TRUE)
+  boot_df <- batting_df[boot_idx, ]
+  fit_i <- lm(BA ~ period, data = boot_df)
+  boot_coef[i, ] <- coef(fit_i)
+}
+
+# 부트스트랩 95% 신뢰구간
+ci_boot <- t(apply(boot_coef, 2, quantile, probs = c(0.025, 0.975)))
+colnames(ci_boot) <- c("2.5%", "97.5%")
+
+# 결과 출력
+out_boot <- paste(capture.output(print(ci_boot)), collapse = "\n")
+out_norm <- paste(capture.output(print(ci_norm)), collapse = "\n")
+
+result_boot <- paste0(
+  "Bootstrap 95% CI (coefficients, percentile):\n",
+  out_boot, "\n\n",
+  "Baseline model 95% CI:\n",
+  out_norm, "\n"
+)
+cat(result_boot)
+```
+
+## Python
+
+```{python}
+import numpy as np
+import pandas as pd
+import statsmodels.formula.api as smf
+
+# Baseline model
+fit_ref = smf.ols("BA ~ period", data=pd_ba).fit()
+nm = fit_ref.params.index
+p = len(nm)
+
+ci_norm = fit_ref.conf_int(alpha=0.05)
+ci_norm.columns = ["2.5%", "97.5%"]
+
+
+# 시뮬레이션 세팅
+np.random.seed(123)
+n_sim = 100
+n_obs = len(pd_ba) # 24880
+
+boot_coef = np.zeros((n_sim, p))
+
+for i in range(n_sim):
+    boot_df = pd_ba.sample(n=n_obs, replace=True)
+    fit_i = smf.ols("BA ~ period", data=boot_df).fit()
+    boot_coef[i, :] = fit_i.params.values
+
+boot_coef_df = pd.DataFrame(boot_coef, columns=nm)
+
+# 부트스트랩 95% 신뢰구간 (Percentile method)
+ci_boot = boot_coef_df.quantile([0.025, 0.975]).T
+ci_boot.columns = ["2.5%", "97.5%"]
+
+# 결과 출력
+result_boot = (
+    "Bootstrap 95% CI (coefficients, percentile):\n"
+    + ci_boot.to_string()
+    + "\n\nBaseline model 95% CI:\n"
+    + ci_norm.to_string()
+    + "\n"
+)
+print(result_boot)
+```
+
+:::
+
+- 부트스트랩을 이용한 구간 추정치를 b항의 결과와 비교했을 때 매우 유사한 결과가 나온 것을 확인할 수 있다.
+- 이러한 결과가 나타난 핵심적인 이유는 분석에 사용된 표본의 크기(n=24880)가 크기 때문에 우리가 익히 알고 있는 중심극한정리(Central Limit Theorem)가 적용된 사례라고 생각된다.
+- 모집단 타율 데이터의 분포가 완벽한 정규분포를 따르지 않고 비대칭성을 띠더라도, 표본의 크기($n$)가 충분히 크면 표본평균의 분포는 근사적으로 정규분포를 띠게 된다.
+- 따라서 정규분포를 엄격하게 가정하고 이론적 수식을 통해 구한 b항의 신뢰구간과, 실제 데이터를 바탕으로 무작위 복원 추출을 반복해 경험적으로 구한 부트스트랩 신뢰구간 모두 결과적으로는 정규분포의 형태에 수렴하게 된다.
+- 결론적으로 두 방식 모두 충분히 큰 표본 하에서 중심극한정리의 영향을 받아 동일한 확률적 특성을 공유하게 되므로, 최종적으로 추정된 신뢰구간이 거의 일치하는 것으로 보인다.
+
+
+## 문제 2-2
+
+위에서 정한 각 기간에 대해서 홈런수(`HR`) 상위 1%에 해당하는 사례들만을 추출하자. (단, 상위 1%를 정할 때 `AB <= 30`인 관측치를 버리지 않는다.) 해당 사례들의 홈런수(`HR`)에 대해 문제 2-1과 같은 방식으로 분석하라.
+
+### 답안
+
+- 문제 2-1에서는 a,b,c에 대한 코드를 각각 만들었는데 동일한 과정이므로 분석을 한번에 진행시키겠다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 필요한 패키지 로드
+library(Lahman)
+library(dplyr)
+library(ggplot2)
+
+# 상위 1% 홈런 데이터 추출
+hr_top1_df <- Batting %>%
+  filter(yearID >= 1982) %>% 
+  group_by(playerID, yearID) %>%
+  summarise(
+    HR = sum(HR, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  # 시기 분류 (AB > 30 필터링 없음)
+  mutate(
+    period = case_when(
+      yearID <= 1993 ~ "1_Pre",
+      yearID <= 2005 ~ "2_Steroid",
+      TRUE ~ "3_Post"
+    ),
+    period = factor(period, levels = c("1_Pre", "2_Steroid", "3_Post"), ordered = TRUE)
+  ) %>%
+  # 그룹별 상위 1% 추출
+  group_by(period) %>%
+  filter(HR >= quantile(HR, probs = 0.99, na.rm = TRUE)) %>%
+  ungroup()
+
+# (a) 시기별 상위 1% 타자들의 홈런수 분포 시각화
+p_density <- ggplot(hr_top1_df, aes(x = HR, fill = period)) +
+  geom_density(alpha = 0.5) +
+  facet_grid(period ~ .) +
+  labs(
+    title = "Distribution of Top 1% Home Runs by Period",
+    x = "Home Runs (HR)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold", margin = margin(b = 15)),
+    strip.text = element_text(face = "bold", size = 11)
+  )
+
+print(p_density)
+
+# ==========================================
+
+# (b) 정규분포 가정한 선형모형 분석
+
+# 모델 적합
+fit_hr <- lm(HR ~ period, data = hr_top1_df)
+
+# 분석 결과
+HR_contrast <- contrasts(hr_top1_df$period)
+HR_summary <- summary(fit_hr)
+HR_ci <- confint(fit_hr, level = 0.95)
+HR_anova <- anova(fit_hr)
+
+# ==========================================
+
+# (c) Bootstrap 신뢰구간 계산
+
+set.seed(123)
+n_sim <- 1000
+n_obs <- nrow(hr_top1_df)
+nm <- names(coef(fit_hr))
+p <- length(nm)
+boot_coef <- matrix(NA_real_, nrow = n_sim, ncol = p, dimnames = list(NULL, nm))
+
+# 부트스트랩 반복
+for (i in seq_len(n_sim)) {
+  boot_idx <- sample.int(n_obs, n_obs, replace = TRUE)
+  boot_df <- hr_top1_df[boot_idx, ]
+  fit_i <- lm(HR ~ period, data = boot_df)
+  boot_coef[i, ] <- coef(fit_i)
+}
+
+# 95% 부트스트랩 신뢰구간 (Percentile method)
+ci_boot <- t(apply(boot_coef, 2, quantile, probs = c(0.025, 0.975)))
+colnames(ci_boot) <- c("2.5%", "97.5%")
+
+# 결과 통합 출력
+cat(
+  "=== (b항) 정규분포 가정 선형모형 결과 ===\n",
+  "Contrast matrix (period, contr.poly):\n",
+  paste(capture.output(HR_contrast), collapse = "\n"), "\n\n",
+  "Summary of lm(HR ~ period):\n",
+  paste(capture.output(HR_summary), collapse = "\n"), "\n\n",
+  "F-statistics = ", HR_anova$F[1], "\n\n",
+  
+  "=== b항 vs c항 신뢰구간 비교 ===\n",
+  "1) Baseline model 95% CI :\n",
+  paste(capture.output(print(HR_ci)), collapse = "\n"), "\n\n",
+  "2) Bootstrap 95% CI :\n",
+  paste(capture.output(print(ci_boot)), collapse = "\n"), "\n"
+)
+```
+
+## Python
+
+```{python}
+# Data Load
+batting = pl.from_pandas(pylahman.Batting())
+
+# 순서 정의
+period_levels = ["1_Pre", "2_Steroid", "3_Post"]
+
+# Polars Data Wrangling
+hr_top1_pl = (
+    batting
+    .filter(pl.col("yearID") >= 1982)
+    .drop_nulls("HR") # 결측치 제거
+    .group_by(["playerID", "yearID"])
+    .agg([
+        pl.col("HR").sum()
+    ])
+    .with_columns(
+        period=pl.when(pl.col("yearID") <= 1993).then(pl.lit("1_Pre"))
+              .when(pl.col("yearID") <= 2005).then(pl.lit("2_Steroid"))
+              .otherwise(pl.lit("3_Post"))
+    )
+    .with_columns(
+        pl.col("period").cast(pl.Enum(period_levels))
+    )
+    .filter(
+        pl.col("HR") >= pl.col("HR").quantile(0.99).over("period")
+    )
+)
+
+hr_top1_df = hr_top1_pl.to_pandas() # statsmodels는 Polars를 직접 받지 않으므로, pandas로 변환 후 진행
+hr_top1_df['period'] = pd.Categorical(hr_top1_df['period'], categories=period_levels, ordered=True)
+hr_top1_df['HR'] = pd.to_numeric(hr_top1_df['HR'])
+hr_top1_df['yearID'] = pd.to_numeric(hr_top1_df['yearID'])
+
+# ==========================================
+
+# (a) 시기별 상위 1% 타자들의 홈런수 분포 시각화
+p_density = (
+    ggplot(hr_top1_df, aes(x='HR', fill='period')) +
+    geom_density(alpha=0.5) +
+    facet_wrap('~period', ncol=1) +
+    labs(
+        title="Distribution of Top 1% Home Runs by Period",
+        x="Home Runs (HR)",
+        y="Density"
+    ) +
+    theme_minimal() +
+    theme(
+        legend_position="none",
+        plot_title=element_text(hjust=0.5, weight="bold"),
+        strip_text=element_text(weight="bold", size=11)
+    )
+)
+
+print(p_density)
+
+# ==========================================
+
+# (b) 정규분포 가정한 선형모형 분석
+
+
+# Pandas로 변환되었으므로 정상적으로 작동합니다.
+fit_hr = smf.ols("HR ~ C(period, Poly)", data=hr_top1_df).fit()
+
+# 직교다항 코딩행렬 확인
+Z_poly = dmatrix("0 + C(period, Poly)", hr_top1_df, return_type="dataframe")
+HR_contrast = (
+    pd.concat([hr_top1_df[["period"]].reset_index(drop=True), Z_poly.reset_index(drop=True)], axis=1)
+    .drop_duplicates(subset=["period"])
+    .sort_values("period")
+    .to_string()
+)
+
+# Summary, 신뢰구간, ANOVA
+HR_summary = fit_hr.summary().as_text()
+
+HR_ci = fit_hr.conf_int(alpha=0.05)
+HR_ci.columns = ["2.5%", "97.5%"]
+
+HR_anova = anova_lm(fit_hr, typ=2)
+HR_f_stat = HR_anova["F"].dropna().iloc[0]
+
+# ==========================================
+
+# (c) Bootstrap 신뢰구간 계산
+
+np.random.seed(123)
+n_sim = 1000
+n_obs = len(hr_top1_df)
+nm = fit_hr.params.index
+p = len(nm)
+
+boot_coef = np.zeros((n_sim, p))
+
+# 부트스트랩 반복 (Pandas의 sample 사용)
+for i in range(n_sim):
+    boot_df = hr_top1_df.sample(n=n_obs, replace=True)
+    fit_i = smf.ols("HR ~ C(period, Poly)", data=boot_df).fit()
+    boot_coef[i, :] = fit_i.params.values
+
+# 95% 부트스트랩 신뢰구간 (Percentile method)
+boot_coef_df = pd.DataFrame(boot_coef, columns=nm)
+ci_boot = boot_coef_df.quantile([0.025, 0.975]).T
+ci_boot.columns = ["2.5%", "97.5%"]
+
+# 결과 통합 출력
+result_str = (
+    "=== (b항) 정규분포 가정 선형모형 결과 ===\n"
+    "Contrast matrix (period, contr.poly):\n"
+    + HR_contrast + "\n\n"
+    "Summary of OLS(HR ~ C(period, Poly)):\n"
+    + HR_summary + "\n\n"
+    "F-statistics = " + str(HR_f_stat) + "\n\n"
+    
+    "=== b항 vs c항 신뢰구간 비교 ===\n"
+    "1) Baseline model 95% CI :\n"
+    + HR_ci.to_string() + "\n\n"
+    "2) Bootstrap 95% CI :\n"
+    + ci_boot.to_string() + "\n"
+)
+
+print(result_str)
+```
+:::
+
+### 2-2 : (a)항
+
+- 시각화 결과를 보면, 각 시기별 상위 1% 홈런수(HR) 분포는 정규분포를 따른다고 보기 어렵다고 생각한다.
+- 홈런수 상위 1%에 해당하는 극단적인 사례들만 추출하였기 때문에, 정규분포의 종 모양보다는 특정 구간에 치우치거나 오른쪽으로 꼬리가 길게 늘어지는 비대칭적인 형태를 보이는 것은 자연스러운 결과라고 생각한다.
+
+### 2-2 : (b)항
+
+- `period.L`의 계수는 양수(약 2.37)이고 p값이 매우 작아 통계적으로 유의하다. 95% 신뢰구간 [1.57, 3.17] 역시 0을 포함하지 않는다. 이는 기간이 지남에 따라 전반적으로 홈런수가 증가하는 선형적 추세가 일부 존재함을 의미한다.
+- `period.Q`의 계수는 음수(약 -5.86)이며 p값이 2×10⁻¹⁶ 미만으로 매우 강하게 유의하고, 신뢰구간 [-6.73, -5.00]도 0을 크게 벗어난다.
+- 문제 2-1은 타율에 대한 데이터로 데이터의 수치 자체가 0에서 1로 제한되어 있어서 회귀 계수의 값이 직관적인 차이가 있다고 보긴 어려웠지만 홈런 수에 대한 데이터로는 계수만으로 직관적인 차이가 있을 것으로 예상할 수 있다.
+- 분산분석에서 기간 요인에 대한 F=93.68 (df=2), p < 2.2×10⁻¹⁶이므로, 두 다항항을 묶어 볼 때 세 기간의 평균 홈런수가 동일하다는 귀무가설은 기각된다.
+- a항에서 시각화한 분포를 고려할 때, 극단값들의 모음인 상위 1% 홈런수 데이터는 뚜렷한 우측 꼬리 비대칭성을 띠므로 b항에서 전제한 오차항의 정규분포 가정이 엄밀한 의미에서 완벽히 타당하다고 보기는 어렵다고 생각한다.
+
+### 2-2 : (c)항
+
+- 부트스트랩을 이용한 구간 추정치를 b항의 결과와 비교했을 때 매우 유사한 결과가 나온 것을 확인할 수 있다.
+- 이또한 문제 2-1과 마찬가지로 중심극한정리(Central Limit Theorem)가 적용된 사례라고 생각된다.
+- 상위 1%만 추려내어 표본의 크기($n = 571$)가 이전 경우에 비해 크게 줄어들었음에도 불구하고, 여전히 충분히 큰 표본이기 때문에 두 구간 추정치가 유사하게 나온 것이라고 판단된다. 
+
+---
+
+## 문제 2-3
+
+문제 2-2에서 추출한 관측치를 사용하여 다음 질문에 답하라.
+
+1982년부터 2025년까지 홈런수의 분포가 어떻게 변해왔는지 시각화하고 홈런수를 반응변수로, 연도(`yearID`)를 독립변수로 하는 회귀분석을 실시하라. 연도의 효과가 거의 유의하지 않게 나온다면 분석을 올바르게 한 것이다. 타격에 대한 유력한 이론은 시간이 지날수록 홈런의 개수가 증가해 왔다는 것인데, 이 분석이 그러한 이론을 반증한다고 할 수 있는가? 아니라고 생각한다면 적절한 교락(confounding)요인을 회귀모형에 포함시켜 다시 분석을 한 뒤에 결과가 어떻게 변하는지 비교하라.
+
+### 답안
+
+- 먼저 연도별 상위 1% 홈런수 산점도 및 선형 추세선 시각화를 해보자.
+
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# 연도별 상위 1% 홈런수 산점도 및 선형 추세선 시각화
+p_trend <- ggplot(hr_top1_df, aes(x = yearID, y = HR)) +
+  geom_point(alpha = 0.5, position = position_jitter(width = 0.2)) +
+  geom_smooth(method = "lm", color = "red", se = TRUE) +
+  labs(
+    title = "Trend of Top 1% Home Runs (1982-2025)",
+    x = "Year",
+    y = "Home Runs"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+p_trend
+
+# 선형 회귀분석
+fit_year <- lm(HR ~ yearID, data = hr_top1_df)
+
+print(summary(fit_year))
+```
+
+## Python
+
+```{python}
+# 연도별 상위 1% 홈런수 산점도 및 선형 추세선
+p_trend = (
+    ggplot(hr_top1_df, aes(x='yearID', y='HR')) +
+    geom_jitter(alpha=0.5, width=0.2) + 
+    geom_smooth(method="lm", color="red", se=True) +
+    labs(
+        title="Trend of Top 1% Home Runs (1982-2025)",
+        x="Year",
+        y="Home Runs"
+    ) +
+    theme_minimal() +
+    theme(plot_title=element_text(hjust=0.5, weight="bold"))
+)
+
+p_trend
+
+# 선형 회귀분석
+fit_year = smf.ols("HR ~ yearID", data=hr_top1_df).fit()
+
+print(fit_year.summary().as_text())
+```
+
+:::
+
+### 시각화 및 회귀 분석 결과
+- 시각화 결과를 보면, 1982년부터 2025년까지 상위 1% 타자들의 홈런수는 연도에 따라 뚜렷한 선형적 증가 추세를 보인다고 하기엔 어려워 보인다.
+- 회귀분석 결과를 보아도 p-value가 0.05 미만이므로 연도(`yearID`)의 효과가 통계적으로 유의하긴 하지만, 결정계수($R^2$)가 0.009에 불과하여 모델의 설명력이 매우 낮다.
+- 즉, 표본의 크기(n=571)가 커서 실질적 의미가 없는 미세한 기울기마저 유의한 것으로 계산된 것이라고 판단된다.
+
+### 스테로이드 시대와의 연관성 추측
+- 문제 2-1와 2-2에서 연도를 세 시기로 나누어 분석했을 때, 2차 항이 매우 유의하게 나타났던 것을 확인했었다.
+- 그리고 이 3개의 시기는 연도를 기준으로 분류한 것이기 때문에, 연도(`yearID`)와 시기(`period`)는 구조적으로 연관된 변수(다중공선성)라고 볼 수 있다.
+- 따라서 시기(`period`) 변수를 추가하여 다중 회귀분석을 실시해보자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+fit_year_period <- lm(HR ~ yearID + period, data = hr_top1_df)
+
+print(summary(fit_year_period))
+```
+
+## Python
+
+```{python}
+fit_year_period = smf.ols("HR ~ yearID + C(period, Poly)", data=hr_top1_df).fit()
+
+print(fit_year_period.summary().as_text())
+```
+:::
+
+- 시기 변수를 포함한 분석 결과, 모형의 설명력($R^2$)이 0.009에서 0.251로 상승하였으며, 스테로이드 시대의 홈런 폭증을 나타내는 이차항(`period.Q`)이 강한 음수(-5.98)를 띠며 통계적으로 매우 유의하게 나타났다.
+- 연도(`yearID`)와 `period.L`의 경우, 두 변수 간의 구조적 연관성(다중공선성)으로 인해 p-value 자체가 상승(0.116)하여 유의하지 않는 변수로 볼 수 있다.
+- 결국 시기에 따른 제곱차항이 매우 유의하여 전체 모델의 설명력이 크게 증가한 반면, 연도 자체의 효과는 유의하지 않게 나오는 결과가 나타났다.
+- 결론적으로 교락 요인을 누락한 단순 회귀분석 결과는 매년 홈런의 개수가 증가한다는 타격 이론을 반증하지 못한다.
+
+---
+
+# 3부  데이터 분석 기술
+
+숙제 1에서는 공식 GitHub 학생 개발자 팩에 가입하고 GitHub Pro 및 GitHub Codespaces 사용을 신청했다. 여기서는 숙제 2 제출용 GitHub 저장소에 작업한 Quarto markdown 소스 파일(`hw02.qmd`)을 올리면 GitHub에서 자동으로 HTML 파일 및 주피터 노트북 파일(`.ipynb`)을 만들고 이것을 [GitHub Pages](https://docs.github.com/en/pages/quickstart)에서 웹페이지로 보이도록 설정하는 것을 연습한다.
+
+## 문제 3-1. Quarto 프로젝트 파일 설정
+
+로컬 저장소 최상위 디렉토리에 `_quarto.yml` 파일에 다자음 내용을 추가한다. 파일이 없다면 새로 만들어 추가한다.
+```{yml}
+project:
+  type: website
+  output-dir: _site
+
+format:
+  html:
+    embed-resources: true
+  ipynb: default  # HTML 빌드 시 ipynb 파일도 함께 생성하도록 설정
+```
+
+`hw02.qmd`를 로컬 저장소에서 컴파일하면 `_site` 디렉토리가 생성되고 그 안에 HTML 및 수반되는 파일들이 만들어지는지 확인하라.
+
+## 문제 3-2. GitHub Actions 워크플로우 생성
+
+GitHub 저장소에 로컬 저장소가 push될 때마다 `.qmd` 파일 컴파일 등의 작업을 자동으로 하게 하는 일은 GitHub Actions에서 담당한다. 로컬 저장소의 `.github/workflows/` 디렉토리(없으면 만든다) 안에 `publish.yml` 파일을 아래와 같이 만든다.
+```{yml}
+name: Quarto Publish (R & Custom Packages)
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: '3.10'
+          activate-environment: r-reticulate
+          channels: conda-forge,defaults
+
+      - name: Install Python dependencies via Conda
+        run: |
+          conda install -n r-reticulate numpy pandas matplotlib polars
+        # 추가로 필요한 패키지 설치
+        shell: bash -l {0}
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true 
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install R Packages
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          install.packages(c("reticulate", "knitr", "rmarkdown"))
+        # 추가로 필요한 패키지 설치
+        shell: Rscript {0}
+
+      - name: Render Quarto
+        run: |
+          export RETICULATE_PYTHON=$(conda info --base)/envs/r-reticulate/bin/python
+          quarto render
+        shell: bash -l {0}
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          publish_branch: gh-pages
+```
+
+추가로 `hw02.qmd` 파일을 컴파일하기 위해 필요한 R과 Python 패키지들을 "# 추가로 필요한 패키지 설치" 부분에 기술한다.
+
+## 문제 3-3. GitHub Pages 설정 변경
+
+저장소를 웹페이지로 활용하는 부분은 GitHub Pages가 담당한다. 
+
+1. 문제 3-2까지의 작업을 push한 후, GitHub (원격)저장소에 `gh-pages` 브랜치가 생성됐는지 확인하라.
+
+2. GitHub 저장소의 Settings > Pages 메뉴로 이동하여 Build and deployment > Branch 섹션에서 브랜치를 `gh-pages`로 선택하고 폴더를 `/ (root)`로 설정한 뒤 저장하라.
+
+3. GitHub 저장소의 Actions 메뉴로 이동하여 2개의 워크플로우가 무사히 종료되었는지 확인하라.
+
+4. 다시 GitHub 저장소의 Settings > Pages 메뉴로 이동하여 상단에 "Your site is live at https://..." 안내가 보이는지 확인하라. 이 곳의 URL이 hw02.qmd로 생성한 웹페이지의 주소다. "Visit site" 버튼을 클릭하여 웹페이지를 브라우저에서 볼 수 있는지 확인하라.
+
+## 문제 3-4. 반복
+
+Quarto 프로젝트 설정에서 주피터 노트북 파일도 함께 생성하도록 설정하였다. 웹페이지에서 노트북을 내려받을 수 있도록 하기 위해 첫 페이지를 변경하고자 한다. 
+이를 위해 `README.md` 파일을 로컬 저장소 최상위 디렉토리에 다음과 같이 만들자.
+
+```{markdown}
+# 숙제 2
+
+이름: [아무개]
+학번: [나의 학번]
+
+이 숙제의 상세 분석 결과는 아래 링크에서 확인하실 수 있습니다.
+
+* [분석 리포트 (HTML)](./hw02.html) 
+* [주피터 노트북 (ipynb)](./hw02.ipynb)
+```
+
+이제 Quarto가 README.md를 첫 페이지로 인식하도록 하기 위해 `_quarto.yml`의 "Render Quarto" 앞에 다음을 추가하자.
+```{yml}
+      - name: Prepare README as Index
+        run: cp README.md index.md
+```
+
+작업을 GitHub 원격 저장소로 push한 후 문제 3-3의 3, 4번 과정을 반복하라.
+
+## 3번 문제 답안
+
+- 문제 3-1부터 3-4까지의 작업을 모두 마치려고 하였으나, GitHub Actions 워크플로우에서 "Render Quarto" 단계가 계속해서 실패하는 문제가 발생했습니다.
+- 문제를 해결하기 위해 여러 가지 시도를 해보았으나, 과제의 원본 파일로 커밋을 진행해도 계속해서 같은 단계에서 실패했습니다. 
+- 그래도 `_quarto.yml`과 `publish.yml` 및 `README.md` 파일은 과제에서 제시된 내용에 맞게 작성하여 커밋하였고, GitHub Pages 설정도 완료하였습니다.
+- 여러번 시도했다는 것을 증빙하기 위해 초기 파일로 커밋한 결과물 제출하겠습니다.
+
+::: {.panel-tabset}
+
+## 여러번 시도한 기록
+
+<img src="figure/quarto_rendering_fail.png" width="600">
+
+## 원본 파일로 진행해도 실패
+
+<img src="figure/origin_file_commit.png" width="600">
+
+
+## 실패 로그
+
+<img src="figure/action_fail_log.png" width="600">
+
+## 문제 3-4 반영
+
+<img src="figure/3_4.png" width="600">
+
+:::

@@ -1,0 +1,913 @@
+---
+title: "제 2강: 데이터 시각화"
+subtitle: "데이터과학 입문"
+author: "원중호"
+date: today
+date-format: "MMMM YYYY"
+institute: 서울대학교 통계학과
+format:
+  html:
+      embed-resources: true
+      toc: true
+      toc-depth: 2
+  revealjs: 
+      embed-resources: true
+      fontsize : 28pt   
+      output-file: ch02-dataviz_slides.html
+      toc: false
+      theme: dark
+      code-fold: false   
+      scrollable: true   
+mainfont: Noto Sans CJK Korean Light
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, fig.width=6, fig.height=4, out.width = "70%", fig.align = "center")  
+options(knitr.table.format = "html")
+```
+
+## 시작하기 전에
+
+이 강의 노트는 다음의 R 환경에서 생성되었다.
+
+```{r echo=FALSE}
+# remotes::install_github("baumer-lab/fec12") # 2012 Federal Election Commission dataset
+# install.packages("tidyverse")
+# install.packages("tidygraph")
+# install.packages("ggraph")
+# install.packages("usethis")
+# install.packages("mdsr")
+# install.packages("mosaicData")
+# install.packages("tidycensus")
+# install.packages("alr4")
+# install.packages("ggrepel")
+library(fec12)
+library(tidyverse)
+library(tidygraph)
+library(ggraph)
+library(mdsr)
+library(tidycensus)
+library(alr4)
+library(ggrepel)
+library(RColorBrewer)
+sessionInfo()
+```
+```{r load_data, echo=FALSE}
+load("./data/fec12_spent.rda")
+load("./data/fec12_spent2.rda")
+load("./data/fec12_donations.rda")
+load("./data/fec12_ma_contributions.rda")
+```
+
+
+
+## 데이터 시각화 
+
+-   데이터에 내재된 패턴을 묘사하고 표현하는 데 강력하고 편리한 도구 
+-   데이터 시각화가 왜 중요한가?
+-   구성 요소는 무엇이 있는가?
+-   본 강의에서는 R의 기본 내장 `plot`이 아닌 강력한 전처리 도구인 `tidyverse`와 시각화 툴인 `ggplot2`를 사용할 것이다.
+
+
+# 데이터 시각화 예시
+
+
+## 2012년 미국 연방 선거 (대통령 선거 포함)
+
+-   미국 연방 선거에서는 위원회 시스템 (특히 political action committees, PACs)에 의해 무제한 기부금을 받아들이고 특정 후보자 또는 후보자 집합에 대해 지출할 수 있다. 
+-   복잡한 선거비용의 지출 네트워크를 풀어내는 것은 훌륭한 데이터과학 연습이 된다. 
+
+-   미 연방 선거관리위원회(Federal Election Commission, FEC)는 개인이 후보자와 위원회에 기부한 $200 이상의 모든 기부금과 각 위원회가 선거 운동에 지출한 금액의 기록을 제공하는 웹사이트를 운영하고 있다. 
+
+---
+
+-   FEC는 또한 어느 후보자가 선거에서 얼마만큼 승리했는지에 대한 별도의 자료도 제공한다.  
+
+-   이들 데이터셋을 하나로 묶기 위해서는 수고가 필요하며, 수업의 전반부 동안 이러한 기술을 공부할 것이다. 
+
+-   이 강의에서는 데이터로부터 얻을 수 있는 정보의 시각적인 표현에 집중한다. 
+
+-   이 단계에서의 주안점은 특정 데이터의 메시지를 명확하고도 정확하게 전달하도록 어떻게 표시할 것인가에 있다.
+
+-   사용 데이터(`fec12`): 2012년 미국 연방 선거에서 각 후보에 대해 지출된 비용에 대한 자료
+
+<!--    Contributions: https://www.fec.gov/campaign-finance-data/any-transaction-one-committee-another-file-description/ -->
+
+---
+
+가장 기본적인 질문: 각 후보가 얼마나 많은 돈을 모금했나? 
+
+-   복잡한 선거 자금 방정식은 이 간단한 질문조차도 대답하기 어렵게 만듦. 
+-   이 질문은 생각보다 의미가 없음.
+
+더 좋은 질문: 어느 후보에게 가장 많은 비용이 지출되었나?
+
+-   먼저 후보별 지출(4백만불 이상)부터 간단하게 그려 보자.
+
+---
+
+<!--
+-   다음의 R 코드를 수행한다. (동작 원리는 교재 4--6장에서 배운다)
+Original code at http://mdsr-book.github.io/code.html#mdsr2e has an error with `transaction_pgi`
+-->
+```{r, echo=FALSE, eval=FALSE}
+contributions <- fec12::read_all_contributions()
+candidate_lkup <- candidates %>%
+  select(
+    cand_id,
+    name = cand_name,
+    party = cand_pty_affiliation,
+    state = cand_office_st,
+    district = cand_office_district,
+    office = cand_office,
+  )
+
+spent <- contributions %>%
+ filter(transaction_pgi == "G2012") %>%
+ group_by(cand_id, phase = transaction_pgi) %>%
+ summarize(
+   N = n(),
+   total = sum(transaction_amt),
+   avg = mean(transaction_amt)
+ ) %>%
+ left_join(candidate_lkup, by = c("cand_id")) %>%
+ arrange(desc(total))
+## save(spent, file = "./data/fec12_spent.rda", compress = "xz")
+```
+
+```{r, echo=FALSE, warning=FALSE}
+#| label: fig-spent
+#| fig-cap: "Amount of money spent on individual candidates in the general election phase of the 2012 federal election cycle, in millions of dollars. Candidacies with at least \\$4 million in spending are depicted."
+spent %>%
+  filter(total > 4000000) %>%
+  mutate(spent = total / 1000000) %>%
+ggplot(aes(x = name, y = spent)) + 
+  geom_col() + 
+  scale_x_discrete(name = NULL) + 
+  scale_y_continuous(name = "Money Spent (millions of USD)", labels = scales::dollar) + 
+  theme(axis.text = element_text(size = rel(0.7))) +
+  coord_flip()
+## save(spent2, file = "./data/fec12_spent2.rda", compress = "xz")
+```
+
+---
+
+-   오바마 당시 대통령에 대해 상대 후보인 공화당 미트 롬니보다 2배 이상 지출된 것으로 보인다.
+
+-   그러나 위원회는 특정 후보를 지지하는 데만 돈을 쓸 수 있는 것이 아니라 특정 후보를 반대하는 데도 돈을 쓸 수 있다(공격 광고). 다음 그림에서는 앞 장의 막대그래프에 표시된 동일한 지출을 후보자를 위한 지출인지 반대하는 지출인지에 따라 구분해 본다.
+
+## 지출항목별 구분
+
+<!--
+Original code at http://mdsr-book.github.io/code.html#mdsr2e has an error with `transaction_pgi`
+`transaction_tp`:'24A' == Independent expenditure opposing election of candidate
+                 '24N' == Communication cost against candidate (only for Form 7 filer)
+-->
+```{r, echo=FALSE, warning=FALSE, eval=FALSE}
+spent2 <- contributions %>%
+  filter(transaction_pgi == "G2012") %>%
+  mutate(
+    spent_against = ifelse(transaction_tp %in% c('24A', '24N'), transaction_amt, 0),
+    spent_for = ifelse(!transaction_tp %in% c('24A', '24N'), transaction_amt, 0)
+  ) %>%
+  group_by(cand_id, phase = transaction_pgi) %>%
+  summarize(
+    N = n(),
+    total = sum(transaction_amt),
+    avg = mean(transaction_amt),
+    supporting = sum(spent_for),
+    against = sum(spent_against)
+  ) %>%
+  left_join(candidate_lkup, by = c("cand_id")) %>%
+  mutate(attack_pct = against / total) %>%
+  arrange(desc(total))
+```
+
+```{r, echo=FALSE}
+#| label: fig-spentattack
+#| fig-cap: "Amount of money spent on individual candidates in the general election phase of the 2012 federal election cycle, in millions of dollars, broken down by type of spending. Candidacies with at least \\$4 million in spending are depicted."
+spent2 %>%
+  filter(total > 4000000) %>%
+  select(cand_id, name, supporting, against) %>%
+  pivot_longer(-c(cand_id, name), names_to = "type", values_to = "spent") %>%
+  mutate(spent = spent / 1000000) %>%
+ggplot(aes(x = name, y = spent, fill = type)) + 
+  geom_col() + 
+  scale_x_discrete(name = NULL) + 
+  scale_y_continuous(name = "Money Spent (millions of USD)", labels = scales::dollar) + 
+  theme(axis.text = element_text(size = rel(0.6))) +
+  coord_flip()
+```
+
+
+---
+
+-   이로부터 오바마에 대한 공격에 훨씬 많은 비용이 지출된 것이 확인 가능
+
+-   롬니에 대해 지출된 대부분의 자금이 그를 공격하는 것이었지만, 롬니에 대한 부정적 지출의 비율(70%)은 오바마(92%)보다 낮음.
+
+-   @fig-spent 와 @fig-spentattack 의  차이는 후자에서는 색상을 사용하여 세 번째 변수(지출 유형)를 그래프에 포함시켰다는 점
+    +   이를 통해 이전 그래프에서 도출할 수 있는 결론을 중요하게 바꾸는 명확한 비교를 할 수 있음
+    +   특히 먼저의 그래프에서는 오바마 대통령의 선거 자금이 롬니를 압도하는 것처럼 보였지만 실제로는 그 반대
+    
+---
+
+-   롬니보다 오바마를 공격하는 데 훨씬 더 많은 비용이 지출되었으므로 @fig-spentattack 에서 공화당이 이번 선거 기간 동안 자금 모금에 더 성공적이었다고 결론을 내릴 수 있다. 
+
+-   다음 @fig-raisedparty 에서 민주당보다 공화당 후보를 지지하는 데 더 많은 비용이 지출되었고, 공화당보다 민주당 후보를 공격하는 데 더 많은 돈이 지출되었으므로 실제로 그랬음을 확인할 수 있다. 또한 거의 모든 자금이 민주당 또는 공화당에 지출되었음을 알 수 있다.
+
+---
+
+```{r message=FALSE, echo=FALSE, warning=FALSE}
+#| label: fig-raisedparty
+#| fig-cap: "Amount of money spent on individual candidacies by political party affiliation during the general election phase of the 2012 federal election cycle."
+spent_tidy <- spent2 %>%
+  group_by(party) %>%
+  summarize(supporting = sum(supporting), against = sum(against)) %>%
+  pivot_longer(-party, names_to = "type", values_to = "spent") %>%
+  filter(spent > 1000000)
+
+ggplot(data = spent_tidy, aes(x = party, y = spent / 1e6, fill = type)) +
+  scale_x_discrete(name = NULL) + 
+  scale_y_continuous(name = "Money Spent (millions of USD)", labels = scales::dollar) + 
+  geom_col()
+```
+
+## 교락 (confounding)
+
+-   그러나 후보자에게 지출된 돈이 실제로 정당에 따라 차이가 있었는지에 대한 질문은 조금 더 까다로움.
+
+-   위에서 살펴본 바와 같이 2012년 연방 선거에서는 대선이 정치 기부금을 지배했고, 롬니 후보는 현직 대통령에 맞서는 심각히 불리한 입장에 놓임. 이 경우 대통령직이 교락 변수가 될 수 있음.
+
+-   다음 @fig-raisedoffice 는 @fig-raisedparty 의 기부금을 추구하는 공직별로 더 세분화
+
+
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#| label: fig-raisedoffice
+#| fig-cap: "Amount of money spent on individual candidacies by political party affiliation during the general election phase of the 2012 federal election cycle, broken down by office being sought (House, President, or Senate)."
+spent2 %>%
+  filter(!is.na(office)) %>%
+  group_by(party, office) %>%
+  summarize(supporting = sum(supporting), against = sum(against)) %>%
+  pivot_longer(-c(party, office), names_to = "type", values_to = "spent") %>%
+  filter(spent > 1000000) %>%
+ggplot(aes(x = party, y = spent / 1e6, fill = type)) +
+  scale_x_discrete(name = NULL) + 
+  scale_y_continuous(name = "Money Spent (millions of USD)", labels = scales::dollar) + 
+  geom_col() + 
+  facet_wrap(~office)
+```
+
+---
+
+-   모든 선출직 선거에 대해 공화당 후보를 지원하는 데 더 많은 돈이 지출된 반면, 대통령 선거에서만 민주당 후보를 공격하는 데 더 많은 돈이 지출됨.
+    +   공화당 하원 및 상원 후보를 공격하는 데 약간 더 많은 비용이 지출
+
+-   @fig-raisedparty 와 @fig-raisedoffice 는 동일한 데이터를 표시
+    +   두 그림이 나타내는 수치는 모두 "정확"
+    +   @fig-raisedoffice 는 선거운동 재정의 미스터리에 대한 중요한 단서를 제공하는 추가 변수를 포함. 
+    +   그 결과 @fig-raisedoffice 는 @fig-raisedparty 보다 훨씬 더 많은 의미를 전달
+
+---
+
+## 변동을 그래프로 표시
+
+주장
+
+> 롬니가 소수의 부유한 기부자들의 지지를 받은 반면, 오바마는 다양한 경제적 스펙트럼의 사람들로부터 지지를 받았다
+
+-   이 주장이 사실이라면 두 후보의 기부금 액수 분포에 차이가 있을 것으로 예상 가능
+
+-   @fig-donations 의 히스토그램은 각 후보를 지지하는 두 개의 주요 위원회에 개인이 기부한 100만 달러 이상을 요약
+
+---
+
+```{r message=FALSE, echo=FALSE, cache=TRUE}
+#| label: fig-donations
+#| fig-cap: "Donations made by individuals to the PACs supporting the two major presidential candidates in the 2012 election."
+ggplot(data = donations, aes(x = transaction_amt)) + 
+  geom_histogram() + 
+  scale_x_continuous(name = "Amount of Donation (USD)", labels = scales::dollar) + 
+  scale_color_discrete(name = NULL) + 
+  ylab("Number of Donations") + 
+  facet_wrap(~candidate)
+```
+
+---
+
+-   오바마가 더 많은 소액 기부를 받은 것으로 보이지만 이 증거가 결정적인 것은 아님.
+
+1. 두 후보 모두 소액 기부는 많이 받았지만 고액 기부는 소수에 불과하며, 가로축의 척도 때문에 실제로 어떤 일이 벌어지고 있는지 확인하기 어려움
+
+2. 히스토그램을 나란히 배치하여 비교하기 어려움
+
+3. 대선 두 단계(예비선거와 본선거)의 모든 기부금을 한데 묶어 표시
+
+
+---
+
+해결 방안
+
+1. 히스토그램 대신 밀도 곡선을 사용하여 분포를 직접 비교할 수 있도록 함 
+2. 중요한 데이터에 집중할 수 있도록 가로축(기부 금액)을 로그 척도로 변경
+3. 선거 단계별로 기부금을 분리
+
+---
+
+```{r echo=FALSE}
+#| label: fig-donationssplit
+#| fig-cap: "Donations made by individuals to the PACs supporting the two major presidential candidates in the 2012 election, separated by election phase."
+ggplot(data = donations, aes(x = transaction_amt)) + 
+  geom_density(aes(color = candidate), adjust = 4) + 
+  scale_x_log10(name = "Amount of Donation (USD)", labels = scales::dollar) + 
+  scale_color_discrete(name = NULL) +
+  facet_wrap(~phase)
+```
+
+---
+
+-   @fig-donationssplit 의 오른쪽 패널은 오바마의 기부금이 예비선거 단계에서 더 광범위한 기반에서 나왔다는 주장을 뒷받침함. 
+    +   이 단계에서 오바마의 기부금 중 더 많은 금액이 소액으로 기부된 것으로 보임.
+    
+-   본선 단계에서는 두 캠페인에 기부된 기부금 분포에 사실상 차이가 없음.
+
+
+---
+
+```{r echo=FALSE}
+district_money <- spent2 %>%
+  filter(office == "H") %>%
+  group_by(state, district) %>%
+  summarize(
+    num_PACs = n(), 
+    total_spent = sum(total), 
+    dem_support = sum(ifelse(party == "DEM", supporting, 0)) + sum(ifelse(party != "DEM", against, 0))
+  ) %>%
+  mutate(dem_money_pct = dem_support / total_spent)
+
+district_results <- fec12::results_house %>%
+#  mutate(district = readr::parse_number(district)) %>%
+  filter(!state %in% c("PR", "VI", "GU", "AS", "MP")) %>%
+  group_by(state, district = district_id) %>%
+  summarize(
+    num_candidates = n(), 
+    total_votes = sum(general_votes, na.rm = TRUE),
+    dem_votes = sum(ifelse(party == "D", general_votes, 0), na.rm = TRUE)
+  ) %>%
+  mutate(dem_vote_pct = dem_votes / total_votes)
+money_results <- district_results %>%
+  left_join(district_money, by = c("state", "district"))
+```
+
+### 변수간의 관계 도시
+
+> 캠페인 지출이 무제한인 경우, 가장 많은 지출을 한 후보가 가장 많은 표를 얻을까?
+ 
+민주당 하원선거에서 각 후보별 지출금액과 득표 수의 산점도를 그리면 두 변수간의 상관관계를 파악할 수 있음
+
+---
+
+```{r echo=FALSE, warning=FALSE}
+#| label: fig-votes
+#| fig-cap: "Scatterplot illustrating the relationship between number of dollars spent supporting and number of votes earned by Democrats in 2012 elections for the House of Representatives."
+ggplot(data = money_results, aes(x = dem_support / 1000000, y = dem_votes)) + 
+  geom_point() + 
+  scale_x_continuous(name = "Money spent supporting Democratic candidate (millions of USD)", labels = scales::dollar) +
+  scale_y_continuous(name = "Number of Votes by Democratic candidate", labels = scales::comma)
+```
+
+---
+
+-   지출금액과 득표 수가 꼭 비례하지는 않음
+
+-   비율: 한쪽 후보에 지출된 금액의 비율 대 득표율
+    +   점의 크기는 해당 선거구에서의 총 지출을 반영
+    +   점의 투명도는 해당 지역의 총 투표자 수에 비례하도록
+
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+#| label: fig-votes-better
+#| fig-cap: "Scatterplot illustrating the relationship between proportion of dollars spent supporting and proportion of votes earned by Democrats in the 2012 House of Representatives elections."
+ggplot(data = money_results, aes(x = dem_money_pct, y = dem_vote_pct)) + 
+  geom_hline(yintercept = c(0.45, 0.55), lty = 3) + 
+  geom_point(aes(size = total_spent, alpha = total_votes)) +
+  geom_smooth() + 
+  scale_x_continuous(name = "Proportion of Money supporting Democratic candidate") +
+  scale_y_continuous(name = "Proportion of Votes by Democratic candidate") + 
+  scale_size(labels = scales::dollar) + 
+  scale_alpha(labels = scales::comma)
+```
+
+---
+
+@fig-votes-better 은 @fig-votes 에서는 볼 수 없었던 디테일을 포함한다.
+
+1.  후보자를 지지하는 자금의 비율과 후보자의 득표율 사이에는 양의 상관관계가 있는 것으로 보인다.
+2.  상관관계 유무는 선거가 실제로 경합하는 산점도의 중앙에서 가장 중요. 
+    +   이 지역을 벗어나면 한 후보자가 55% 이상의 득표율을 얻으며, 일반적으로 지출되는 비용이 거의 없음. 
+    +   왼쪽 아래 모서리에 있는 점 중 하나는 당시 하원의장이었던 존 보너가 경쟁자 없이 출마하여 당선된 오하이오주 제8선거구
+    
+---
+
+3.  산점도 중앙의 점들이 더 크게 표시 --- 경합 선거에 더 많은 자금이 지출
+    +   그러나 경합 선거에서 더 많은 재정 지원이 더 많은 득표와 상관관계가 있다는 증거는 상대적으로 약함
+    +   가장 많은 돈이 지출된 선거(1,100만 달러 이상)인 오하이오주 16지구에서는 선거구 재획정의 결과로 양당 현역 의원이 경합. 지출된 돈 중 51.2%가 서튼 후보를 지지하는 데 사용되었지만 서튼 후보는 48.0%의 득표율에 그침
+
+---
+
+## 네트워크
+
+-   네트워크 도표 --- 변수간 상관관계를 볼 수 있는 또 다른 방법
+
+-   선거자금 모금은 개인이 위원회에 돈을 기부하고 위원회가 후보자를 대신하여 돈을 지출하는 네트워크(그래프) 구조를 가짐
+    +   정점(nodes, vertices): PAC 혹은 후보자
+    +   호(edges): PAC -> 후보자로의 지출 유무 (방향성 있음)
+    +   지출액이 많은 PAC나 지원을 많이 받은 후보는 크게 표시
+    +   후보자의 소속 정당에 따라 색으로 표시
+
+---
+
+```{r echo=FALSE}
+ma_contributions <- contributions %>%
+  filter(state == "MA") %>%
+  mutate(attack = ifelse(!transaction_tp %in% c('24A', '24N'), FALSE, TRUE)) %>%
+  group_by(cmte_id, cand_id, attack) %>%
+  summarize(amount = sum(transaction_amt))
+## save(ma_contributions, file = "./data/fec12_ma_contributions.rda", compress = "xz")
+```
+
+```{r echo=FALSE, warning=FALSE, cache=TRUE}
+g <- tidygraph::as_tbl_graph(ma_contributions, directed = TRUE) %>%
+  left_join(
+    select(fec12::candidates, cand_id, cand_name, cand_pty_affiliation), 
+    by = c("name" = "cand_id")
+  ) %>%
+  left_join(
+    select(fec12::committees, cmte_id, cmte_nm, cmte_pty_affiliation), 
+    by = c("name" = "cmte_id")
+  ) %>%
+  mutate(
+    node_name = ifelse(is.na(cmte_nm), cand_name, cmte_nm), 
+    node_name = gsub(" / ", "\n", node_name), 
+    # V(g)$degree <- degree(g)
+    pr = centrality_pagerank(), 
+    strength = centrality_degree(mode = "all", weights = amount)
+  )
+```
+
+```{r echo=FALSE, warning=FALSE, cache=TRUE}
+#| label: fig-ma-funding
+#| fig-cap: "Campaign funding network for candidates from Massachusetts, 2012 federal elections. Each edge represents a contribution from a PAC to a candidate."
+set.seed(21)
+ggraph::ggraph(g, layout = 'graphopt') + 
+  geom_edge_fan(
+    aes(edge_alpha = amount, lty = attack), 
+    color = "darkgray"
+  ) +
+  geom_node_point(
+    aes(size = strength, color = cand_pty_affiliation), 
+    alpha = 0.6
+  ) + 
+  geom_node_label(
+    aes(filter = strength > 1e5, label = node_name, size = strength), 
+  repel = TRUE) + 
+  scale_size_continuous(
+    name = "money", range = c(1, 7), 
+    labels = scales::dollar
+  ) + 
+  scale_color_manual(
+    name = "party", 
+    values = c("REP" = "red", "DEM" = "blue", "DFL" = "gray", "GRE" = "gray", "IND" = "gray", "LIB" = "gray"), 
+    na.value = "gray") + 
+  scale_edge_alpha(name = "money", labels = scales::dollar) + 
+  theme_void()
+```
+
+<!--
+---
+
+-   @fig-ma-funding 에서 위원회 지출의 혜택을 가장 많이 받은 두 후보는 공화당의 미트 롬니와 스콧 브라운
+    +   메사추세츠주 주지사였던 롬니는 대통령 선거에 출마하여 공화당 전국위원회로부터 막대한 기부금을 받음
+    +   브라운은 민주당이 강세인 해당 주에서 강력한 도전자인 엘리자베스 워렌에 맞서 상원의원 자리를 지키기 위해 출마
+
+-->
+
+
+# 데이터 그래픽 작성법
+
+
+## 요리와 데이터 그래픽의 비교 
+
+|         | 요리 | 데이터 그래픽 |
+|---------|:-----|:------|
+| 아무나  | 전자렌지에 데워먹기   | `plot` |
+| 셰프    | 도구 마스터, 구성요소에 대한 이해와 통찰, 창의성   | 좌동 |
+
+## 데이터 그래픽 분류 (Yau, 2013)
+
+1. 시각적 단서 (visual cues)
+2. 좌표계 (coordinate systems)
+3. 척도 (scale)
+4. 맥락 (context)
+
+## 시각적 단서
+
+- 상대의 시선을 원하는 정보에 집중시키는 그래픽 요소
+    + 어떤 시각적 단서를 사용하여 어떤 종류의 양을 나타낼 것인가?
+
+::: {.smaller}
+```{r echo=FALSE}
+tribble(
+  ~`Visual Cue`, ~`Variable Type`, ~Question,
+  "Position", "numerical", "where in relation to other things?",
+  "Length", "numerical", "how big (in one dimension)?",
+  "Angle", "numerical", "how wide? parallel to something else?",
+  "Direction", "numerical", "at what slope? in a time series, going up or down?",
+  "Shape", "categorical", "belonging to which group?",
+  "Area", "numerical", "how big (in two dimensions)?",
+  "Volume", "numerical", "how big (in three dimensions)?",
+  "Shade", "either", "to what extent? how severely?",
+  "Color", "either", "to what extent? how severely?"
+) %>%
+  mdsr::mdsr_table(caption = "Visual cues and what they signify.") %>%
+  kableExtra::column_spec(3, width = "24em")
+```
+:::
+
+## 좌표계
+
+
+1.  데카르트(직교) 좌표계 $(x, y)$
+
+2.  극좌표계 $(r, \theta)$
+    - 직교 좌표계에 대한 대안으로, 특히 데이터를 원형 또는 방사형 문맥에서 표현할 때 유용하다.
+
+3.  지리적 좌표계 (경도, 위도)
+    - 지구 표면을 나타내는 곡면 상 위치를 2차원으로 표현한다.
+    
+- 예: 항공기 노선과 같은 지리 공간 데이터를 평면의 직교 좌표계에 표시하면 현실의 심각한 왜곡을 초래할 수 있음
+
+## 척도
+
+- 값을 시각적 단서로 변환
+
+- 척도의 선택은 시각화에서 종종 결정적인 역할을 한다 (예: @fig-donationssplit )
+
+- 핵심 질문
+
+> 데이터 그래픽에서의 거리가 정량적으로 의미 있는 차이로 어떻게 해석되는가?
+
+---
+
+1.  수치형 (`numeric`): 선형, 로그, 또는 백분율 척도. 
+    + 주의: 로그 척도는 예들 들어 1cm의 위치 차이가 눈금의 어느 위치에서나 동일한 양의 차이를 나타내지 않음
+
+2.  범주형 (`factor`, `ordered`): 순서가 없거나 (예: 민주당, 공화당, 또는 무소속), 있거나 (예: 비흡연자, 과거 흡연자, 현재 흡연자).
+
+3.  시간 (`"POSIXct`, `POSIXt`)
+    - 특별한 속성을 가진 수치형 변수 
+    - 달력 때문에 다양한 단위(예: 년, 월, 일 등)로 나뉘어질 수 있음 
+    - 주기성을 띄고 있어 "wrap-around" 척도로 간주 가능 
+    - 흔히 사용되나 오용이 많음
+    
+- 척도의 오용은 자료점의 상대적 위치를 완전히 왜곡할 수 있기 때문에 주의가 필요
+
+---
+
+## 맥락
+
+-   부적절한 데이터 그래픽은 보는 사람이 의미있는 비교를 하도록 돕는 목적의 정반대 결과를 초래할 수 있음
+
+적절한 맥락 제공이 필요.
+
+-   제목/부제: 보여지는 내용을 설명
+-   축 레이블: 단위와 척도가 어떻게 나타내지는지 명확히 함. 
+-   기준점/기준선: 관련 외부 정보를 제공
+
+## 기타 구성요소
+
+-   데이터 그래픽에서의 기본적 어려움: 다변량 정보를 2차원 이미지로 압축
+
+-   2차원 데이터 시각화에 더 많은 변수를 통합하는 방법
+    1. 다면 그래프(multiple facets): 같은 기본 그래프를 하나의 이산변수의 변화에 따라 복수 개 그려줌.
+        -   이산변수가 가질 수 있는 값이 많지 않아야 함
+    2. 층: 기존 데이터 그래픽 위에 새로운 층을 덧입힘. 맥락이나 비교 제공
+        -   효과적인 층의 개수는 많지 않음
+    3. 애니메이션: 시간 변수가 있을 경우 그에 따른 변화를 효과적으로 전달할 수 있음. 
+        -   인쇄된 페이지에서 작동하지 않음
+        -   한 번에 모든 데이터를 볼 수 없음
+
+
+
+## 색상
+
+-   가장 눈에 띄지만 잘못 인식되기 쉽고 오용이 잦음 (참고: 음영)
+
+-   수치형 변수를 나타낼 때, 특히 작은 차이가 중요한 경우에는 좋은 표현 방법이 아님
+    +   점의 위치가 훨씬 중요
+
+-   색이 가장 효과적으로 사용되는 경우: 산점도에서 세 번째 또는 네 번째 숫자 변수를 나타내는 경우
+    +   예: 남자=파란색, 여자=빨간색 점
+
+-   전체 인구의 약 8%가 색맹 (특히 적록 색맹)
+    +   많은 사람들이 자신이 색맹임을 모르고 있음
+    
+---
+
+### 해결책: 잘 설계된 팔레트 사용
+
+`RColorBrewer` 패키지
+
+-   Sequential
+    ```{r echo=FALSE}
+    RColorBrewer::display.brewer.pal(9, "YlOrRd")
+    ```
+    
+---
+
+-   Divergent
+    ```{r echo=FALSE}
+    RColorBrewer::display.brewer.pal(9, "RdBu")
+    ```
+    
+---
+
+-   Qualitative
+    ```{r echo=FALSE}
+    RColorBrewer::display.brewer.pal(9, "Accent")
+    ```
+    
+참고: [`viridis` 패키지](https://cran.r-project.org/web/packages/viridis/vignettes/intro-to-viridis.html)
+    
+# 데이터 시각화 예시
+
+##  미국 수학능력시험 성적
+
+```{r message=FALSE, echo=FALSE} 
+#| label: fig-sat-dot 
+#| fig-cap: "Bar graph of average SAT scores among states with at least two-thirds of students taking the test."
+ggplot(data = filter(mosaicData::SAT, frac > 100*(2/3))) +
+  geom_col(aes(x = state, y = math)) + 
+  xlab(NULL) + ylab("Average SAT score") + 
+  ggtitle("Average SAT math score, 1994-1995") + 
+  coord_cartesian(ylim = c(200, 525)) +
+  theme(axis.text.x = element_text(size = rel(0.7)))
+```
+
+---
+
+-   세로축: SAT 수학 점수 (수치형)
+    +   선형 척도
+    +   시각적 단서: 길이
+    +   최소 점수인 200점에서 시작하도록 제한
+
+-   가로축: 주 (범주형)
+    +   순서는 의미 없음
+
+-   좌표계: 데카르트 좌표계. 가로 좌표는 의미 없음
+
+-   맥락 제공: 축 레이블과 제목
+
+
+## 자유형 100m 세계기록 추이
+
+```{r echo=FALSE}
+#| label: fig-swimgg
+#| fig-cap: "Scatterplot of world record time in 100-m freestyle swimming."
+
+ggplot(data = mosaicData::SwimRecords, aes(x = year, y = time, color = sex)) + 
+  geom_point(aes(shape = sex), size = 3) + 
+  geom_line() + 
+  labs(title = "World Record time in 100-m Freestyle", x = "Year", 
+    y = "Time (s)") 
+```
+
+---
+
+-   좌표계: 데카르트 좌표계
+
+-   세로축: 초 (수치형, 선형 척도)
+-   가로축: 연도 (수치형, 선형 척도)
+-   시각적 단서
+    +   색상: 성별(범주형) 구분
+    +   방향: 산점도 상의 점을 선으로 연결. 기록 시간의 진행을 나타냄. 
+    +   각도: 시간 및 성별에 따른 세계 기록 단축을 비교
+    +   점 모양: 성별 구분
+
+## 약물 남용 임상시험
+
+```{r echo=FALSE}
+ggplot(data = mosaicData::HELPrct, aes(x = factor(1))) + 
+  geom_bar(aes(fill = substance), position = "fill") + 
+  scale_fill_brewer(palette = "Spectral") + 
+  coord_polar(theta = "y") +
+  labs(
+    title = "Substance of Abuse among housed HELP participants", 
+    x = NULL
+  ) + 
+  facet_wrap(~homeless)
+```
+
+---
+
+-   Health Evaluation and Linkage to Primary Care (HELP) 임상 시험에서의 약물 남용 통계 (Samet et al., 2003) 
+    +   원 그래프
+
+-   좌표계: 극좌표
+
+-   시각적 단서
+    +   색상: 범주형 변수 `substance`의 세 수준 구별
+    +   각도: 각 약물 사용자의 비율 차이 정량화
+
+실제 비율:
+```{r echo=FALSE}
+mosaicData::HELPrct %>%
+  group_by(homeless, substance) %>%
+  count() %>%
+  group_by(homeless) %>%
+  mutate(proportion = n / sum(n)) %>%
+  pivot_wider(id_cols = substance, names_from = homeless, values_from = c(n, proportion)) %>%
+  mutate(
+    Homeless = paste(
+      "n = ", n_homeless, " (", round(100 * proportion_homeless, 1), "%)", sep = ""
+    ),
+    Housed = paste(
+      "n = ", n_housed, " (", round(100 * proportion_housed, 1), "%)", sep = ""
+    )
+  ) %>% 
+  select(substance, Homeless, Housed)
+```
+
+-   이 경우에는 간단한 표가 더 효과적
+
+## 매사추세츠주 인구 데이터
+
+```{r, include=FALSE, echo=FALSE, message=FALSE, cache=TRUE}
+ma_pop <- tidycensus::get_acs(geography = "tract", variables = "B01003_001", state = "MA", geometry = TRUE)
+```
+
+```{r message=FALSE, echo=FALSE, eval=TRUE}
+#| label: choropleth-ma
+#| fig-cap: "Choropleth map of population among Massachusetts Census tracts, based on 2018 American Community Survey."
+ggplot(ma_pop) + 
+  geom_sf(aes(fill = cut(estimate/1000, 10)), color = NA) + 
+  coord_sf(datum = NA) + 
+  theme_minimal() + 
+  scale_fill_brewer("Population (in thousands)", palette = "Blues") + 
+  labs(
+    title = "Massachusetts Census Tracts by Population",
+    subtitle = "Based on 2010 US Census"
+  )
+```
+
+---
+
+-   2010년 인구 조사에 따른 매사추세츠주의 [계급구분도](https://en.wikipedia.org/wiki/Choropleth_map) (choropleth map)
+
+-   좌표계: 지리 좌표계
+
+-   시각적 단서: 음영 (인구 수)
+    +   10개의 파란색 음영은 인구 조사 구역 인구의 10분위에 대응
+    +   구역별 인구 분포는 오른쪽으로 치우쳐 있으므로(right-skewed) 각 음영은 동일한 폭의 인구 범위를 나타내지 않음
+
+-   맥락 제공: 제목, 부제 및 범례
+
+
+# 데이터 시각화의 중요성
+
+## 우주왕복선 챌린저호 사고 (1986)
+
+-   1986년 1월 27일, 미 항공우주국(NASA)의 우주왕복선에 고체 로켓 모터를 제공한 Morton Thiokol사의 엔지니어들은 다음날 발사 예정인 우주왕복선 챌린저호의 안전성을 위협할 수 있는 추운 날씨 예보에 근거해 발사 연기를 권고함. 
+
+-   엔지니어들은 13개의 차트를 제공했고, 엔지니어와 관리자, NASA가 참여한 2시간의 컨퍼런스 콜을 통해 이를 검토했으나 권고는 설득력 있는 증거 부족으로 인해 거부되었고 발사는 계획대로 진행됨. 
+
+-   발사 후 73초 만에 엔지니어들이 우려한 대로 O링이 고장나서 챌린저는 폭발하고 탑승한 7명의 우주비행사가 모두 사망. 
+
+---
+
+-   사고 원인을 밝히기 위해 노벨물리학상 수상자인 리처드 파인먼을 포함한 대통령 직속 위원회가 구성되어 사고를 조사. 조사 결과 Morton Thiokol사  엔지니어들이 온도와 O링 손상 사이의 주요 인과 관계를 정확하게 파악했다는 사실이 분명해짐.
+
+-   문제는 이들이 NASA 관리자들에게 설득력 있는 방식으로 증거를 제시하지 않았다는 점 
+    +   회의에 제출된 증거는 수기로 작성된 데이터 표의 형태였지만, 그래픽은 없었음
+    
+---
+
+## Tufte의 데이터 그래픽 (1997)
+
+```{r , message=FALSE, echo=FALSE}
+#| label: fig-tufte0
+#| fig-cap: "A scatterplot with smoother demonstrating the relationship between temperature and O-ring damage on solid rocket motors. The dots are semi-transparent, so that darker dots indicate multiple observations with the same values."
+set.seed(38)
+challeng <- alr4::Challeng %>%
+  mutate(
+    label = case_when(
+      damage == 11 ~ "SRM 15",
+      damage == 4 & temp == 75 ~ "SRM 22",
+      TRUE ~ ""
+    )
+  )
+
+challenger_plot <- ggplot(data = challeng, aes(x = temp, y = damage)) + 
+  geom_jitter(size = 5, height = 0.25, width = 0.25, alpha = 0.5) + 
+  geom_smooth() + 
+  ggrepel::geom_label_repel(aes(label = label)) + 
+  ylab("Tufte's O-ring damage index") + 
+  xlab("Temperature (degrees F) of field joints at time of launch")
+challenger_plot
+```
+
+---
+
+-   @fig-tufte0 은 주변 온도와 고체 로켓 모터의 O링 손상 사이의 명확한 관계를 보여준다. 
+
+-   1986년 1월 27일의 예측 온도에 대한 극적인 외삽을 보여주기 위해 Tufte는 산점도의 가로축을 확장하여 예측 온도를 포함시킴
+    +  @fig-tufte 은  외삽의 문제점을 명확하게 보여줌.
+    
+---
+
+```{r message=FALSE, echo=FALSE}
+#| label: fig-tufte
+#| fig-cap: "A recreation of Tufte's scatterplot demonstrating the relationship between temperature and O-ring damage on solid rocket motors."
+
+extra <- tibble(
+  temp = 42, damage = 2, 
+  label = "26 - 29 degree range of forecasted temperatures\n(as of January 27th, 1986) for the launch\nof space shuttle Challenger on January 28th"
+)
+
+challenger_plot + 
+  geom_rect(xmin = 26, xmax = 29, ymin = -0.1, ymax = 0.1, fill = "red") + 
+  xlim(c(25, 85)) + 
+  geom_label(
+    data = extra, aes(label = label),
+    hjust = "center", vjust = "bottom"
+  ) + 
+  geom_curve(
+    data = extra, angle = 135,
+    curvature = -0.5,
+    aes(xend = 30, yend = 0),
+    arrow = arrow(length = unit(0.02, "npc"))
+  )
+```
+
+--- 
+
+Tufte (1997)는 엔지니어들의 실패에 대한 철저한 비평을 제공하고 있으며, 그 중 많은 부분은 데이터과학자들에게 교훈이 될 만한 내용임.
+
+1.  책임자 부재: 도표에 이름이 없어 책임성 부재를 불러 일으켰고, 의견을 기각하기가 쉬움.
+
+2.  단변량 분석: 엔지니어들은 여러 단변량 데이터 표를 제공했지만 중요한 의사 결정에 영향을 미치는 두 변수 간의 관계를 보여주지 않았다.
+    -   표 형식으로 둘 사이의 연관성을 확인하기가 매우 어렵다.
+
+3.  단편적인 증거: 표본 크기가 작기 때문에 이상치(SRM-22)에 기반한 단편적인 반박에 대응하기 어려움.
+
+---
+
+4.  자료 누락: 엔지니어들은 22개의 다른 운행에서 얻은 데이터를 제시하지 않아 전체 발사 중 92%를 대표하는 중요한 정보를 생략함.
+
+5.  혼란: 시간 제약과 협업을 고려할 때 엔지니어들은 종종 erosion(부식)과 blow-by(가스가 새는 현상)와 같은 두 가지 다른 유형의 손상을 명확히 구분하지 않음. 
+    +   불명확한 용어 사용은 의사결정권자의 이해를 방해할 수 있음.
+    
+---
+
+### 교훈
+
+1.  명확성과 맥락: 데이터 과학자는 맥락과 변수 간의 관계를 고려하여 증거를 명확하게 제시해야 한다.
+
+2.  포괄적인 분석: 단편적인 증거나 중요한 데이터를 생략하지 않고 모든 데이터를 고려할 필요가 있다.
+
+3.  시각화: 효과적인 데이터 그래픽은 표보다 복잡한 관계를 강력하게 전달할 수 있다.
+    +   적절한 축 레이블, 추가 텍스트 설명 및 캡션으로 명확하게 설명해야 한다.
+
+4.  책임성: 분석을 특정 개인에게 명시적으로 할당하여 데이터에 기반한 결정에 대한 책임을 부여해야 한다.
+
+
+## 효과적인 프레젠테이션 기술
+
+-   효과적인 프레젠테이션은 데이터 과학자에게 중요한 기술
+-   학술회의, 강의실, 회의실, 심지어 무대 위에서도 청중과 소통하는 능력은 헤아릴 수 없는 가치를 지니고 있음.
+
+1.  시간 관리
+    +   발표와 질의응답 시간은 정해져 있음
+    +   발표 시간이 너무 짧거나 길면 준비되지 않은 것으로 인식
+    +   리허설: 여러 번. 리허설할 때보다 실제 발표할 때 더 빨리 말하는 경향이 있을 수 있음
+    +   속도를 높이기 위해 더 빨리 말하는 것은 좋지 않은 전략. 핵심 슬라이드나 결론으로 직행하는 것이 훨씬 나음
+
+2.  한 화면에 너무 많은걸 담지 말 것
+    +   청중이 슬라이드를 읽고 있지 않도록 할 것.
+    +   슬라이드는 말을 대신하는 것이 아니라 요점에 대한 시각적 단서를 제공해야 함. 
+
+---
+
+3.  문제에 맥락을 줄 것
+    +   대부분의 청중은 발표 주제에 대한 지식이 거의 없음
+    +   발표 시작 직후 몇 분 정도 시간을 할애하여 주제의 가장 기본적인 측면을 소개하고 발표할 내용에 대한 동기를 제시하라.
+    
+4.  크고 명확하게 말할 것
+
+5.  알고 있는 모든 것을 말하려 하지 말 것
+    +   큰 주제를 명확하게 전달하기 위해 노력하되 세부적인 내용에 집착하지 말 것
+    +   청중이 연구 질문이 무엇인지, 이를 어떻게 해결했는지, 연구 결과의 함의가 무엇인지 이해하고 떠날 수 있다면 성공!
+

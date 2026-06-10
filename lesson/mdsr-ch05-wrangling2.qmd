@@ -1,0 +1,1094 @@
+---
+title: "제 5강 : 데이터 랭글링 II"
+subtitle: "데이터과학 입문"
+author: "원중호"
+date: today
+date-format: "MMMM YYYY"
+institute: 서울대학교 통계학과
+format:
+  html:
+      embed-resources: true
+      toc: true
+      toc-depth: 2
+  revealjs: 
+      embed-resources: true
+      fontsize: 28pt  
+      output-file: ch05-wrangling2_slides.html
+      toc: false
+      theme: dark
+      code-fold: false   
+      scrollable: true    
+mainfont: Noto Sans CJK Korean Light
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, fig.width=6, fig.height=4, out.width = "70%", fig.align = "center", python.reticulate = TRUE)  
+options(knitr.table.format = "html")
+reticulate::use_condaenv(condaenv = "introds", conda = "/opt/homebrew/bin/conda") # for persistency
+```
+ 
+## 시작하기 전에
+
+다음의 패키지가 설치되어 있지 않으면 설치한다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+# install.packages("tidyverse")
+# install.packages("mdsr")
+# install.packages("nycflights13")
+# install.packages("knitr")
+# install.packages("Lahman")
+library(tidyverse)
+library(mdsr)
+library(nycflights13)
+library(knitr)
+library("Lahman")
+sessionInfo()
+```
+
+## Python
+
+```{python}
+# conda install session-info
+# conda install polars
+# pip install pylahman
+import session_info
+import zipfile
+import io
+import polars as pl
+import pylahman
+
+session_info.show()
+```
+
+:::
+
+# 복수 개의 자료표를 이용한 데이터 랭글링
+
+## `nycflights13` 데이터
+
+- 이 패키지는 뉴욕 시의 3개 주요 공항(존 F. 케네디 국제공항(JFK), 라과디아 공항(LGA), 뉴왁 리버티 국제공항(EWR))에서 2013년에 출발한 모든 비행기에 대한 자료(`flights`)를 담고 있다. 또한 `airlines`, `airports`, `weather`, `planes`에 대한 참조자료(metadata) 또한 찾을 수 있다. 
+
+::: {.panel-tabset}
+## R
+
+```{r}
+pillar::glimpse(flights)
+```
+
+## Python
+
+```{python}
+zip_path = "./data/ch05_data.zip"
+
+with zipfile.ZipFile(zip_path, 'r') as z:
+    with z.open("flights.csv") as f:
+        # Pass the null_values parameter to handle "NA" strings
+        flights = pl.read_csv(
+            f.read(), 
+            null_values="NA", 
+            infer_schema_length=10000  # Help Polars guess types more accurately
+        )
+flights.glimpse()
+```
+
+:::
+
+---
+
+- 각 행은 하나의 항공편. 매년 수십만 개의 행을 포함
+
+<!--
+-   `sched_dep_time`: 예정된 출발 시간
+-   `dep_delay`: 출발 지연 시간
+-   `arr_time`: 실제 도착 시간
+-   `sched_arr_time`: 예정된 도착 시간
+-   `arr_delay`: 도착 지연 시간
+-   `carrier`: 항공사명
+-   `flight`: 항공편명
+-->
+
+::: {.panel-tabset}
+## R
+
+```{r}
+flights %>% 
+  filter(month == 1 & day == 1, abs(dep_delay) > 30) %>%
+  select(dep_time,arr_time,carrier:dest) %>% slice(1:4) 
+```
+
+## Python
+
+```{python}
+(
+    flights
+    .filter(
+        (pl.col("month") == 1) & 
+        (pl.col("day") == 1) & 
+        (pl.col("dep_delay").abs() > 30)
+    )
+    .select([
+        "dep_time", 
+        "arr_time", 
+        *flights.columns[flights.get_column_index("carrier") : flights.get_column_index("dest") + 1]
+    ])
+    .slice(0, 4) # Polars uses 0-based indexing (0 is the start, 4 is the length)
+).show()
+```
+
+:::
+
+- 자료의 값이 코드로 되어 있어서 쉽게 뜻을 알 수가 없다. 
+
+- 큰 자료표의 경우 코드를 사용하면 디스크의 저장 공간을 절약하여 검색 속도를 눈에 띄게 향상시킬 수 있음.
+
+## 원 자료와 참조자료 
+ 
+- 위 자료에서 `carrier == "AA"`가 무슨 뜻일까? 
+
+-   참조자료 `airlines`를 보면 알 수 있다. 
+
+::: {.panel-tabset}
+## R
+
+```{r}
+head(airlines,2)
+```
+
+## Python
+
+```{python}
+with zipfile.ZipFile(zip_path, 'r') as z:
+    with z.open("airlines.csv") as f:
+        # Pass the null_values parameter to handle "NA" strings
+        airlines = pl.read_csv(
+            f.read(), 
+            null_values="NA", 
+            infer_schema_length=10000  # Help Polars guess types more accurately
+        )
+airlines.head()
+```
+
+:::
+    
+- AA가 American Airlines Inc.임을 원 자료 `flights`의 `carrier` 변수의 값 AA와 참조자료 `airlines`의 `carrier` 변수의 값 AA에 해당하는 열을 대조하여 알 수 있다. 
+
+- 두 자료표의 변수 carrier 와 carrier 가 (이름이 다를 수도 있다) 두 자료표를 연결하는 열쇠(*key*)이다.
+
+<!--
+-   `tailnum`: 항공기 번호
+-   `origin`: 출발지
+-   `dest`: 목적지
+-   `air_time`: 비행시간
+-   `distance`: 거리
+-   `hour`: 출발 시간의 시
+-   `minute`: 출발 시간의 분
+-   `time_hour`: 출발 날짜
+-->
+  
+## `inner_join()`
+
+- `flights` 자료표과 `airlines` 자료표 각각에서 `carrier` 변수가 같은 행들을 연결
+
+::: {.panel-tabset}
+## R
+
+```{r}
+flights_joined <- flights %>%
+    inner_join(airlines, by = c("carrier" = "carrier"))
+glimpse(flights_joined)
+```
+
+## Python
+
+```{python}
+flights_joined = flights.join(
+    airlines, 
+    on="carrier", 
+    how="inner"
+)
+flights_joined.glimpse()
+```
+
+:::
+
+---
+
+-   `flights_joined`에 `name`이라는 변수가 추가됨.
+
+::: {.panel-tabset}
+## R
+
+```{r}
+flights_joined %>%
+    select(carrier, name, flight, origin, dest) %>%
+    head(3)
+```
+
+## Python
+
+```{python}
+(
+    flights_joined
+    .select([
+        "carrier", "name", "flight", "origin", "dest"
+    ])
+).head(3)
+```
+
+:::
+
+---
+
+-   `inner_join()`은 두 자료표 모두에서 일치하는 행만을 포함함
+-   위 예시의 경우, `flights`의 모든 행은 `airlines`에서 정확히 하나의 해당 항목을 가지므로 `flights_joined`의 행 수는 `flights`의 행 수와 동일함.
+
+::: {.panel-tabset}
+## R
+
+```{r}
+nrow(flights)
+```
+
+## Python
+
+```{python}
+flights.height
+```
+
+:::
+
+::: {.panel-tabset}
+## R
+
+```{r}
+nrow(flights_joined)
+```
+
+## Python
+
+```{python}
+flights_joined.height
+```
+
+:::
+
+---
+
+![Inner join (source: R Studio)](./img/inner_join)
+
+## `nycflights13` 패키지의 자료와 연결 열쇠들
+
+![Relational database](img/relational-nycflights.png)
+
+
+## `left_join()`
+
+-   뉴욕 시에서 미국 서해안으로 가는 항공편에만 관심이 있다고 가정하자.
+
+-   그 중 태평양 표준시간대(UTC -8)에 있는 공항만 사용하기 위해서 `airports` 자료표를 필터링하여 해당 공항들만 포함.
+
+::: {.panel-tabset}
+## R
+
+```{r}
+airports_pt <- airports %>%
+    filter(tz == -8)
+nrow(airports_pt)
+```
+
+## Python
+
+```{python}
+with zipfile.ZipFile(zip_path, 'r') as z:
+    with z.open("airports.csv") as f:
+        # Pass the null_values parameter to handle "NA" strings
+        airports = pl.read_csv(
+            f.read(), 
+            null_values="NA", 
+            infer_schema_length=10000  # Help Polars guess types more accurately
+        )
+
+airports_pt = airports.filter(pl.col("tz") == -8)
+airports_pt.height
+```
+
+:::
+
+---
+
+-   이제, `flights`와 `airports_pt`에 `inner_join()`을 이용하여 `flights`의 목적지 공항 코드를 `airports`의 `faa`와 일치시키면, 태평양 표준시간대에 있는 항공편만 검색할 수 있음.
+
+::: {.panel-tabset}
+## R
+
+```{r}
+nyc_dests_pt <- flights %>%
+  inner_join(airports_pt, by = c("dest" = "faa"))
+glimpse(nyc_dests_pt)
+```
+
+## Python
+
+```{python}
+nyc_dests_pt = flights.join(
+    airports_pt, 
+    left_on="dest", 
+    right_on="faa", 
+    how="inner"
+)
+nyc_dests_pt.glimpse()
+```
+
+:::
+
+---
+
+- 동일한 조건으로 `left_join()`을 사용하면 항공편의 모든 행을 검색하고, 일치하는 데이터가 없는 열에는 `NA`가 삽입됨.
+
+::: {.panel-tabset}
+## R
+
+```{r}
+nyc_dests <- flights %>%
+    left_join(airports_pt, by = c("dest" = "faa"))
+nyc_dests %>%
+    summarize(
+        num_flights = n(),
+        num_flights_pt = sum(!is.na(name)),
+        num_flights_not_pt = sum(is.na(name))
+    )
+```
+
+## Python
+
+```{python}
+nyc_dests = flights.join(
+    airports_pt, 
+    left_on="dest", 
+    right_on="faa", 
+    how="left"
+)
+print(
+  nyc_dests
+    .select([
+    pl.len().alias("num_flights"),
+    pl.col("name").count().alias("num_flights_pt"),
+    pl.col("name").null_count().alias("num_flights_not_pt")
+    ])
+)
+```
+
+:::
+
+-   `left_join()`은 첫 번째 자료표의 행을 항상 반환하며, 두 번째 자료표에 일치하는 항목이 있는지 여부와 관계없이 반환함.
+
+---
+
+![Left join (source: R Studio)](./img/left_join)
+
+## 다양한 관계형 데이터베이스 연결기법 
+
+- Mutating joins: 여러 개의 자료표에서 변수들을 결합-원자료에 새 변수 생성 (mutate)
+
+    + `left_join()`, `inner_join()`, `full_join()`, `right_join()`. 
+    
+- Filtering joins: 참조자료와 대조하여 원자료의 관측단위들을 거름 (filter)
+  
+    + `semi_join()`, `anti_join()`
+    
+- 집합 연산: 양쪽 자료표가 같은 변수로 이루졌을 때, 관측단위들의 집합연산
+
+    + `union()`, `intersect()`, `setdiff()`
+    
+- 무작정 붙이기
+
+    + `bind_rows()`, `bind_cols()` 
+    
+## Mutating joins
+
+![Source: R Studio Cheatsheet](./img/rstudio-cheatsheet-combine-options1)
+
+## Filtering joins
+
+![Semi-join (source: R Studio)](./img/semi_join)
+
+---
+
+![Anti-join (source: R Studio)](./img/anti_join)
+
+## 집합 연산
+
+![Union (source: R Studio)](./img/setunion)
+
+---
+
+![Intersection (source: R Studio)](./img/setintersect)
+
+---
+
+![Difference (source: R Studio)](./img/setdiff)
+
+
+## 무작정 붙이기
+
+![Bind columns (source: R Studio)](./img/bind_cols)
+
+---
+
+![Bind rows (source: R Studio)](./img/bind_rows)
+
+
+# 심화 예제 : 매니 라미레즈 
+
+-  [Manny Ramirez](https://www.mlb.com/player/manny-ramirez-120903)
+
+## Batting 자료표 (Lahman)
+
+- 선수들의 타격 통계가 팀별, 시즌별로 기록된 자료표
+
+::: {.panel-tabset}
+## R
+
+```{r}
+manny <- Lahman::Batting %>%
+    filter(playerID == "ramirma02")
+manny
+```
+
+## Python
+
+```{python}
+Batting = pl.from_pandas(pylahman.Batting())
+manny = (
+    Batting
+    .filter(pl.col("playerID") == "ramirma02")
+)
+print(manny)
+```
+
+:::
+
+## Manny의 주요 타격 통계
+
+::: {.panel-tabset}
+## R
+
+```{r}
+manny %>%
+    summarize(
+    span = paste(min(yearID), max(yearID), sep = "-"),
+    num_years = n_distinct(yearID),
+    num_teams = n_distinct(teamID),
+    BA = sum(H)/sum(AB),
+    tH = sum(H),
+    tHR = sum(HR),
+    tRBI = sum(RBI)
+)
+```
+
+## Python
+
+```{python}
+print(
+    manny.select([
+        # Create the span (min-max year)
+        pl.format("{}-{}", pl.col("yearID").min(), pl.col("yearID").max()).alias("span"),
+        # Count distinct values
+        pl.col("yearID").n_unique().alias("num_years"),
+        pl.col("teamID").n_unique().alias("num_teams"),
+        # Calculated metric (Batting Average)
+        (pl.col("H").sum() / pl.col("AB").sum()).alias("BA"),
+        # Standard sums
+        pl.col("H").sum().alias("tH"),
+        pl.col("HR").sum().alias("tHR"),
+        pl.col("RBI").sum().alias("tRBI")
+    ])
+)
+```
+
+:::
+
+- 여러 변수의 결과를 새 변수로 결합하기 위해 `paste()` 함수를 사용
+- 유일한 시즌과 팀의 개수를 계산하기 위해 `n_distinct()` 함수를 사용
+
+## Manny는 5개의 팀에서 비슷하게 활약을 했을까?
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+manny %>%
+    group_by(teamID) %>%
+    summarize(
+        span = paste(min(yearID), max(yearID), sep = "-"),
+        num_years = n_distinct(yearID),
+        num_teams = n_distinct(teamID),
+        BA = sum(H)/sum(AB),
+        tH = sum(H),
+        tHR = sum(HR),
+        tRBI = sum(RBI)
+        ) %>%
+    arrange(span)
+```
+
+## Python
+
+```{python}
+print(
+    manny
+    .group_by("teamID")
+    .agg([
+        # Create the span (min-max year)
+        pl.format("{}-{}", pl.col("yearID").min(), pl.col("yearID").max()).alias("span"),
+        # Count distinct years
+        pl.col("yearID").n_unique().alias("num_years"),
+        # Count distinct teams (will be 1 per group here)
+        pl.col("teamID").n_unique().alias("num_teams"),
+        # Calculated Batting Average (BA)
+        (pl.col("H").sum() / pl.col("AB").sum()).alias("BA"),
+        # Totals
+        pl.col("H").sum().alias("tH"),
+        pl.col("HR").sum().alias("tHR"),
+        pl.col("RBI").sum().alias("tRBI")
+    ])
+    .sort("span") 
+)
+```
+
+:::
+
+---
+
+- Cleveland, Boston, Los Angeles Dodgers에서는 활약을 많이 했지만 Chicago White Sox와 Tampa Bay Rays에선 큰 활약을 하지 못함.
+
+- 다음 분석을 통해서 통산 성적의 대부분을 아메리칸 리그에서 달성한 것을 알 수 있음.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+manny %>%
+    group_by(lgID) %>%
+    summarize(
+        span = paste(min(yearID), max(yearID), sep = "-"),
+        num_years = n_distinct(yearID),
+        num_teams = n_distinct(teamID),
+        BA = sum(H)/sum(AB),
+        tH = sum(H),
+        tHR = sum(HR),
+        tRBI = sum(RBI)
+    ) %>%
+    arrange(span)
+```
+
+## Python
+
+```{python}
+print(
+    manny
+    .group_by("lgID")
+    .agg([
+        # Date span
+        pl.format("{}-{}", pl.col("yearID").min(), pl.col("yearID").max()).alias("span"),
+        # Distinct counts
+        pl.col("yearID").n_unique().alias("num_years"),
+        pl.col("teamID").n_unique().alias("num_teams"),
+        # Stats calculations
+        (pl.col("H").sum() / pl.col("AB").sum()).alias("BA"),
+        pl.col("H").sum().alias("tH"),
+        pl.col("HR").sum().alias("tHR"),
+        pl.col("RBI").sum().alias("tRBI")
+    ])
+    .sort("span")
+)
+```
+
+:::
+
+## `summarize()`
+
+> Manny가 19시즌밖에 뛰지 않았는데 왜 21개의 행이 있을까?
+
+- 30개 이상의 홈런을 친 시즌의 수
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+manny %>%
+    filter(HR >= 30) %>%
+    nrow()
+```
+
+## Python
+
+```{python}
+print(
+    manny
+    .filter(pl.col("HR") >= 30)
+    .height
+)
+```
+
+:::
+
+- 2008년에 보스턴에서 홈런 20개를 친 후 트레이드되어 다저스에서 17개의 홈런을 더 친 기록이 반영되지 않았기 때문에 틀린 결과
+
+- 연도별 집계가 필요
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+manny %>%
+    group_by(yearID) %>%
+    summarize(tHR = sum(HR)) %>%
+    filter(tHR >= 30) %>%
+    nrow()
+```
+
+## Python
+
+```{python}
+print(
+    manny
+    .group_by("yearID")
+    .agg(
+        pl.col("HR").sum().alias("tHR")
+    )
+    .filter(pl.col("tHR") >= 30)
+    .height
+)
+```
+
+:::
+
+## 열쇠를 이용한 연결
+
+- 지금까지의 예제는 `playerID`가 `ramirma02`인 선수에 대한 타격 자료표를 필터링하는 것으로 시작
+
+- 이 ID를 어떻게 알았을까? 
+
+- `playerID`는 `People` 자료표에 정의된 기본 열쇠(primary key)
+  + `People` 자료표의 모든 행은 `playerID` 값으로 유일하게 식별됨.
+  + `playerID == "ramirma02"`인 행은 유일
+
+---
+
+- Q: 이 ID가 매니 라미레즈와 일치한다는 것을 어떻게 알 수 있나? 
+- A: 검색
+
+::: {.small}
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+People %>%
+    filter(nameLast == "Ramirez" & nameFirst == "Manny") %>%
+    kable()
+```
+
+## Python
+
+```{python}
+People = pl.from_pandas(pylahman.People())
+print(
+    People
+    .filter(
+        (pl.col("nameLast") == "Ramirez") & 
+        (pl.col("nameFirst") == "Manny")
+    )
+)
+```
+
+:::
+
+:::
+
+- 시즌에 따라 변하지 않는 매니 라미레즈에 대한 특성이 포함
+
+## `inner_join()`
+
+- `playerID`를 열쇠로 `Batting` 자료표와 `People` 자료표를 결합해보자.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+#| label: manny_career_timeline
+#| eval: false
+Batting %>%
+    filter(playerID == "ramirma02") %>%
+    inner_join(People, by = c("playerID" = "playerID")) %>%
+    group_by(yearID) %>%
+    summarize(
+        Age = max(yearID - birthYear),
+        num_teams = n_distinct(teamID),
+        BA = sum(H)/sum(AB),
+        tH = sum(H),
+        tHR = sum(HR),
+        tRBI = sum(RBI)
+    ) %>%
+    arrange(yearID)
+```
+
+## Python
+
+```{python}
+#| label: manny_career_timeline-python
+#| eval: false
+print(
+    Batting
+    .filter(pl.col("playerID") == "ramirma02")
+    .join(People, on="playerID", how="inner")
+    .group_by("yearID")
+    .agg([
+        # Calculate Age
+        (pl.col("yearID") - pl.col("birthYear")).max().alias("Age"),
+        # Count distinct teams
+        pl.col("teamID").n_unique().alias("num_teams"),
+        # Calculated and summed stats
+        (pl.col("H").sum() / pl.col("AB").sum()).alias("BA"),
+        pl.col("H").sum().alias("tH"),
+        pl.col("HR").sum().alias("tHR"),
+        pl.col("RBI").sum().alias("tRBI")
+    ])
+    .sort("yearID")
+)
+```
+
+:::
+
+- `Batting` 자료표에서 `playerID` 열은 다른 자료표의 기본 열쇠를 참조한다는 의미에서 외래 열쇠(foreign key)라고 함
+  + `Batting$playerID`는 행을 유일하게 결정하지 않음 (왜 그런가?)
+  
+---
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+#| label: manny_career_timeline
+#| eval: true
+#| echo: false
+```
+
+## Python
+
+```{python}
+#| label: manny_career_timeline-python
+#| eval: true
+#| echo: false
+```
+
+:::
+
+## Manny의 영광의 시대는?
+
+![(source: Slam Dunk)](https://cdn.imweb.me/upload/S2024101135d5c6108f340/bd395696280b2.png)
+
+---
+
+- On-Base Plus Slugging Percentage (OPS) = OBP + SLG
+  + On-Base Percentage (OBP):  출루율
+  + Slugging Percentage (SLG) : 장타율. 타수당 평균적으로 진루한 베이스 수 (1루타, 2루타, 3루타, 홈런)
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+#| label: manny_by_season
+#| eval: false
+manny_by_season <- Batting %>%
+    filter(playerID == "ramirma02") %>%
+    inner_join(People, by = c("playerID" = "playerID")) %>%
+    group_by(yearID) %>%
+    summarize(
+        Age = max(yearID - birthYear),
+        num_teams = n_distinct(teamID),
+        BA = sum(H)/sum(AB),
+        tH = sum(H),
+        tHR = sum(HR),
+        tRBI = sum(RBI),
+        OBP = sum(H + BB + HBP) / sum(AB + BB + SF + HBP),
+        SLG = sum(H + X2B + 2 * X3B + 3 * HR) / sum(AB)
+    ) %>%
+    mutate(OPS = OBP + SLG) %>%
+    arrange(desc(OPS))
+manny_by_season
+```
+
+## Python
+
+```{python}
+#| label: manny_by_season-python
+#| eval: false
+# Prepare the People table by picking ONLY what we need
+# We only need playerID (for the join) and birthYear (for the calculation)
+people_subset = (
+    People
+    .select(["playerID", "birthYear"])
+)
+# Run the pipeline
+manny_by_season = (
+    Batting
+    .filter(pl.col("playerID") == "ramirma02")
+    # Join with the CLEAN subset, not the whole People table
+    .join(people_subset, on="playerID", how="inner")
+    .group_by("yearID")
+    .agg([
+        (pl.col("yearID") - pl.col("birthYear")).max().alias("Age"),
+        pl.col("teamID").n_unique().alias("num_teams"),
+        (pl.col("H").sum() / pl.col("AB").sum()).alias("BA"),
+        pl.col("H").sum().alias("tH"),
+        pl.col("HR").sum().alias("tHR"),
+        pl.col("RBI").sum().alias("tRBI"),
+        # OBP
+        ((pl.col("H").sum() + pl.col("BB").sum() + pl.col("HBP").sum()) / 
+         (pl.col("AB").sum() + pl.col("BB").sum() + pl.col("SF").sum() + pl.col("HBP").sum()))
+        .alias("OBP"),
+        # SLG (Note: using string names for columns starting with numbers)
+        ((pl.col("H").sum() + pl.col("2B").sum() + 2*pl.col("3B").sum() + 3*pl.col("HR").sum()) / 
+         pl.col("AB").sum())
+        .alias("SLG")
+    ])
+    .with_columns([
+        (pl.col("OBP") + pl.col("SLG")).alias("OPS")
+    ])
+    .sort("OPS", descending=True)
+)
+print(manny_by_season)
+```
+
+:::
+
+---
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+#| label: manny_by_season
+#| eval: true
+#| echo: false
+```
+
+## Python
+
+```{python}
+#| label: manny_by_season-python
+#| eval: true
+#| echo: false
+```
+
+:::
+
+## 스테로이드 시대
+
+- OPS가 2000년에 가장 높은 것을 알 수 있음.
+- 그러나 2000년은 스테로이드 시대의 절정으로 많은 강타자들이 엄청난 수치를 기록함.
+- 따라서 OPS를 각 시즌의 리그 평균 OPS와 비교할 필요가 있음 (OPS+).
+
+### 리그 평균 OPS 계산
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+mlb <- Batting %>%
+    filter(yearID %in% 1993:2011) %>%
+    group_by(yearID) %>%
+    summarize(
+        lg_OBP = sum(H + BB + HBP, na.rm = TRUE) /
+        sum(AB + BB + SF + HBP, na.rm = TRUE),
+        lg_SLG = sum(H + X2B + 2*X3B + 3*HR, na.rm = TRUE) /
+        sum(AB, na.rm = TRUE)
+    ) %>%
+mutate(lg_OPS = lg_OBP + lg_SLG)
+```
+
+## Python
+
+```{python}
+mlb = (
+    Batting
+    # Filter for years 1993 to 2011 (inclusive)
+    .filter(pl.col("yearID").is_between(1993, 2011))
+    .group_by("yearID")
+    .agg([
+        # League OBP
+        ((pl.col("H").sum() + pl.col("BB").sum() + pl.col("HBP").sum()) / 
+         (pl.col("AB").sum() + pl.col("BB").sum() + pl.col("SF").sum() + pl.col("HBP").sum()))
+        .alias("lg_OBP"),
+        # League SLG
+        ((pl.col("H").sum() + pl.col("2B").sum() + 2*pl.col("3B").sum() + 3*pl.col("HR").sum()) / 
+         pl.col("AB").sum())
+        .alias("lg_SLG")
+    ])
+    # Mutate to create lg_OPS
+    .with_columns([
+        (pl.col("lg_OBP") + pl.col("lg_SLG")).alias("lg_OPS")
+    ])
+    .sort("yearID")
+)
+print(mlb)
+```
+
+:::
+
+---
+
+### 리그 평균 OPS를 Manny의 해당 항목과 시즌별로 결합, OPS+를 계산
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+manny_ratio <- manny_by_season %>%
+    inner_join(mlb, by = c("yearID" = "yearID")) %>%
+    mutate(OPS_plus = OPS / lg_OPS) %>%
+    select(yearID, Age,OPS,lg_OPS,OPS_plus) %>%
+    arrange(desc(OPS_plus))
+manny_ratio
+```
+
+## Python
+
+```{python}
+manny_ratio = (
+    manny_by_season
+    .join(mlb, on="yearID", how="inner")
+    # Mutate to create OPS_plus
+    .with_columns([
+        (pl.col("OPS") / pl.col("lg_OPS")).alias("OPS_plus")
+    ])
+    
+    # Select specific columns and Sort
+    .select([
+        "yearID", 
+        "Age", 
+        "OPS", 
+        "lg_OPS", 
+        "OPS_plus"
+    ])
+    .sort("OPS_plus", descending=True)
+)
+print(manny_ratio)
+```
+
+:::
+
+---
+
+- 2000년은 여전히 최고의 시즌으로 평가할 수 있지만 1999년 시즌은 2위에서 3위로 떨어짐을 알 수 있음.
+
+- Manny는 메이저리그 전체 평균보다 적어도 15% 더 나은 OPS를 17년 연속으로 기록함.
+
+## 칼 립켄
+
+[Cal Ripken Jr.](https://www.mlb.com/player/cal-ripken-jr-121222): 1981--2001
+
+- 9년간 Manny와 겹침
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+ripken <- Batting %>%
+  filter(playerID == "ripkeca01")
+ripken %>%
+  inner_join(mlb, by = c("yearID" = "yearID")) %>%
+nrow()
+```
+
+## Python
+
+```{python}
+ripken = (
+    Batting
+    .filter(pl.col("playerID") == "ripkeca01")
+)
+(
+    ripken
+    .join(mlb, on="yearID", how="inner")
+).height
+```
+
+:::
+
+---
+
+- Manny와 겹치지 않는 시즌
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+ripken %>%
+    left_join(mlb, by = c("yearID" = "yearID")) %>%
+    select(yearID, playerID,lg_OPS)%>%
+    head(3)
+```
+
+## Python
+
+```{python}
+(
+    ripken
+    .join(mlb, on="yearID", how="left")
+    .select([
+        "yearID", "playerID", "lg_OPS"
+    ])
+).head(3)
+```
+
+:::
+
+---
+
+- `left_join()`에서 순서를 바꿈으로써 리그 평균을 계산한 19개의 시즌을 반환함.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+mlb %>%
+    left_join(ripken, by = c("yearID" = "yearID")) %>%
+    select(yearID, playerID,lg_OPS)
+```
+
+## Python
+
+```{python}
+print(
+    mlb
+    .join(ripken, on="yearID", how="left")
+    .select([
+        "yearID", "playerID", "lg_OPS"
+    ])
+)
+```
+
+:::
+
+

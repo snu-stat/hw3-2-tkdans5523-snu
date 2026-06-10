@@ -1,0 +1,1117 @@
+---
+title: "제 3강: 그래픽 문법 (1부)"
+subtitle: "데이터과학 입문"
+author: "원중호"
+date: today
+date-format: "MMMM YYYY"
+institute: 서울대학교 통계학과
+format:
+  html:
+      embed-resources: true
+      toc: true
+      toc-depth: 2
+  revealjs:
+      embed-resources: true
+      fontsize : 28pt
+      output-file: ch03-ggplot-part1_slides.html
+      toc: false
+      theme: dark
+      code-fold: false   
+      scrollable: true   
+      auto-stretch: false
+
+mainfont: "Noto Sans Korean Light"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, fig.width=6, fig.height=4, out.width = "70%", fig.align = "center", python.reticulate = TRUE)  
+options(knitr.table.format = "html")
+reticulate::use_condaenv(condaenv = "introds", conda = "/opt/homebrew/bin/conda") # for persistency
+```
+ 
+ 
+## 시작하기 전에
+
+다음의 패키지가 설치되어 있지 않으면 설치한다.  
+
+::: {.panel-tabset}
+## R
+
+```{r}
+# install.packages("mdsr")
+# install.packages("tidyverse")
+# install.packages("NHANES")
+# install.packages("macleish")
+# install.packages("devtools")
+# devtools::install_github("haleyjeppson/ggmosaic")
+# install.packages("tidygraph")
+# install.packages("babynames")
+library(mdsr)
+library(tidyverse)
+library(NHANES)
+library(macleish)
+library(ggmosaic)
+library(ggraph)
+library(tidygraph)
+library(babynames)
+sessionInfo()
+```
+
+## Python
+
+```{python}
+# conda install session-info
+# conda install pandas
+# conda install matplotlib
+# conda install numpy 
+# conda install scikit-learn
+# conda install plotnine
+# conda install seaborn
+# conda install polars
+import session_info
+import pandas as pd
+import polars as pl
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from plotnine import *
+from statsmodels.graphics.mosaicplot import mosaic
+
+session_info.show()
+```
+
+:::
+
+# 데이터 그래픽을 위한 문법
+
+## `ggplot2`
+
+-   이 강의에서는 `tidyverse`의 `ggplot2`를 이용한 데이터 그래픽을 설명한다.
+-   R에서는 기본 제공되는 기본(`base`) 그래픽과 `lattice` 시스템으로 정적 2차원 데이터 그래픽을 만들 수 있으나, `ggplot2`는 [그래픽 문법](https://link.springer.com/book/10.1007/0-387-28695-0)을 사용하여 체계적으로 데이터 그래픽을 만들 수 있다.
+
+---    
+
+`ggplot2` 그래픽 문법의 중요 요소
+
+- Aesthetic: 변수와 그 값을 나타내는 시각적 단서 사이의 명시적 대응
+- Glyph: 하나의 관측단위(case)를 나타내는 기본 그래픽 요소('마크' 또는 '심볼').
+
+---
+
+예: 산점도
+
+-   Glyph: 점 (또는 마크)
+-   시각적 단서: glyph의 가로세로 위치 - 대응되는 수량이 얼마나 큰지 이해하는 데 도움
+-   Aesthetic: 위의 대응을 정의하는 사상(mapping)
+    +   변수가 두 개 이상인 경우, 추가적인 aesthetics로 다른 시각적 단서를 통합
+    +   시계열의 방향과 같은 일부 시각적 단서는 암묵적이며 해당하는 aesthetic이 없음
+    
+---  
+
+-   사용 자료: `mdsr::CIACountries` 데이터 테이블에는 236개 국가별로 수집된 7가지 변수를 포함.
+    +   인구(`pop`), 면적(`area`), 국내총생산(`gdp`), 교육에 지출되는 GDP 비율(`educ`), 단위 면적당 도로 길이(`roadways`), 인구 대비 인터넷 사용 비율(`net_users`), 하루 생산되는 석유 배럴 수`(oil_prod)`
+
+::: {.panel-tabset}
+## R
+
+```{r echo=TRUE, message=FALSE}
+#| label: countrydata
+#| tbl-cap: "A selection of variables from the first six rows of the CIA countries data table."
+mdsr::CIACountries %>% select(-area, -pop) %>% head 
+```
+
+## Python
+```{python}
+#| label: countrydata-python
+#| tbl-cap: "A selection of variables from the first six rows of the CIA countries data table."
+#_CIACountries = pd.read_csv("data/CIACountries.csv")
+### convert to polars DataFrame
+#CIACountries = pl.from_pandas(_CIACountries)
+
+# 1. Force the schema for EVERY column that could have large numbers
+# This prevents the parser from ever 'guessing' i64 for these columns
+CIACountries = pl.read_csv(
+    "data/CIACountries.csv", 
+    schema_overrides={
+        "area": pl.Float64,
+        "oil_prod": pl.Float64
+    },
+    null_values=["NA", "", "null"] # Ensures various 'NA' strings are caught
+)
+
+print(CIACountries
+    .select(pl.exclude(["area", "pop"]))  # drop those two cols
+    .head()                               # first few rows
+)
+```
+
+:::
+
+---
+
+### Aesthetics
+
+::: {.panel-tabset}
+## R
+
+```{r warning=FALSE, echo=TRUE}
+#| label: fig-simple-glyph
+#| fig-cap: "Scatterplot using only the position aesthetic for glyphs."
+g <- ggplot(data = CIACountries, aes(y = gdp, x = educ))
+g + geom_point(size = 3)
+```
+
+## Python
+```{python warning=FALSE, echo=TRUE}
+#| label: fig-simple-glyph-python
+#| fig-cap: "Scatterplot using only the position aesthetic for glyphs."
+g = ggplot(data = CIACountries, mapping = aes(x='educ', y='gdp')) 
+(g  + geom_point(size=3)).show()
+```
+
+:::
+
+---
+
+-   `ggplot()` 명령으로 도표 객체 `g`를 생성
+-   `data`: 도표의 어느 곳에서든 언급된 변수는 `data` 인수에 지정된 `CIACountries` 데이터프레임 내에 있는 것으로 이해
+
+-   `ggplot2`의 그래픽은 요소별로 점진적으로 만들어진다.
+
+1. `g`에서 aesthetics는 2개로, `aes()` 함수를 이용하여 수직(`y`) 좌표를 `gdp` 변수에, 수평(`x`) 좌표를 `educ` 변수에 대응시킨다.
+2.  유일한 glyph는 점으로, `geom_point()`를 이용해서 덧붙인다.
+    +   `geom_point()`의 인수는 점이 그려지는 위치와 방법을 지정. 
+    +   `size` 인수는 모든 glyph의 크기를 변경. 
+    
+---
+
+3.  @fig-simple-glyph 에서 크기는 aesthetic이 아님.      
+    +   모든 점의 크기가 동일 --- 변수를 시각적 단서에 대응시키지 않음
+4.  점 하나는 `country`를 나타냄 (왜 그런가?). 
+    
+
+- 또한 각 축에 변수를 매핑하는 것 외에도 다음과 같이 여러 시각적인 속성에 변수를 매핑할 수 있음.  
+  + `col` : 시각화에 사용되는 색 지정  
+  + `label` : 시각화를 통해 표현되는 label 지정  
+  + `size` : 시각화에 사용되는 크기 지정  
+
+---  
+
+#### 여러 속성을 갖는 glyph
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-net-use-color
+#| fig-cap: "Scatterplot in which net_users is mapped to color."
+g + geom_point(aes(color = net_users), size = 3)
+```
+
+## Python
+```{python}
+#| label: fig-net-use-color-python
+#| fig-cap: "Scatterplot in which net_users is mapped to color."
+(g + geom_point(aes(color='net_users'), size=3)).show()
+```
+
+:::
+
+-   각 점의 *색상*을 범주형 `net_users` 변수에 대응시켜 (aesthetic 추가) @fig-simple-glyph 를 확장
+
+---
+
+#### Glyph 바꾸기
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-country-labels
+#| fig-cap: "Scatterplot using both location and label as aesthetics."
+g + geom_text(aes(label = country, color = net_users), size = 3)
+```
+
+## Python
+```{python}
+#| label: fig-country-labels-python
+#| fig-cap: "Scatterplot using both location and label as aesthetics."
+(g + geom_text(aes(label = 'country', color = 'net_users'), size = 10)).show()
+g.show()
+```
+
+:::
+
+
+-   점 -> 텍스트
+
+---
+
+#### 더 많은 aesthetics
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-four-variables
+#| fig-cap: "Scatterplot in which net_users is mapped to color and educ mapped to size."
+g + geom_point(aes(color = net_users, size = roadways))
+```
+
+## Python
+```{python}
+#| label: fig-four-variables-python
+#| fig-cap: "Scatterplot in which net_users is mapped to color and educ mapped to size."
+(g + geom_point(aes(color = 'net_users', size='roadways'))).show()
+```
+
+:::
+
+::: {.smaller}
+
+1. `educ` -> 가로축상 위치
+2. `gdp` -> 세로축상 위치
+3. `net_users` -> 색상
+4. `roadways` -> 점 크기
+
+:::
+
+---  
+
+#### Glyph-ready data
+
+> 점 하나는 `country`를 나타냄 (왜 그런가?). 
+
+::: {.panel-tabset}
+## R
+```{r}
+head(CIACountries)
+```
+
+## Python
+```{python}
+CIACountries.head()
+```
+
+:::
+
+모든 데이터프레임이 이렇지는 않음. 6장 참조.
+
+---
+
+### 척도
+
+-   @fig-four-variables 에서 GDP값이 오른쪽으로 꼬리가 긴(right-skewed) 분포를 가지기 때문에 값이 작은 부분에서는 차이를 느끼기 어려움.  
+
+---
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-log-scale
+#| fig-cap: "Scatterplot using a logarithmic transformation of GDP that helps to mitigate visual clustering caused by the right-skewed distribution of GDP among countries."
+g + geom_point(aes(color = net_users, size = roadways)) +
+    coord_trans(y = "log10")
+```
+
+## Python
+```{python}
+#| label: fig-log-scale-python
+#| fig-cap: "Scatterplot using a logarithmic transformation of GDP that helps to mitigate visual clustering caused by the right-skewed distribution of GDP among countries."
+(g + geom_point(aes(color = 'net_users', size = 'roadways')) + 
+     coord_trans(y='log10')).show()
+```
+
+:::
+
+-   선형 척도 -> (상용)로그 척도 (`coord_trans()`)
+-   모든 척도가 위치에 관한 것은 아님: `net_users` -> 색상(qualitative); `roadways` -> 점 크기 
+
+<!--
+`scale` 뿐만 아니라 축의 이름(`name`)과 표시형식(`label`) 역시 변경할 수 있다.
+```{r}
+#| fig-cap: "Scatterplot using a logarithmic transformation of GDP."
+g + geom_point(aes(color = net_users, size = roadways)) +
+    scale_y_continuous(
+      name = "Gross Domestic Product",
+      trans = "log10",
+      labels = scales::comma
+    )
+```
+-->
+
+---
+
+### 가이드
+
+-   맥락을 제공하여 시각적 단서에 의미 부여
+
+-   위치 정보: 축, 눈금, 레이블
+-   범례: `net_users` -> 색상 등 대응 설명
+
+---  
+
+### Facets
+
+여러 개의 나란히 놓인 도표
+
+- 한 도표에 너무 많은 aesthetics(모양, 색상, 크기 등)을 한꺼번에 표시하는 것은 너무 많은 정보를 주어 혼란을 줄 수 있음.
+
+- Facet은 여러 그래프를 범주에 따라 병렬적으로 그려 주어 보다 효과적으로 다양한 정보를 제공할 수 있음.
+
+---
+
+#### `facet_wrap()`
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: facet-internet
+#| fig-cap: "Scatterplot using facets for different ranges of Internet connectivity."
+g + geom_point(alpha = 0.9, aes(size = roadways)) +
+    coord_trans(y = "log10") +
+    facet_wrap(~net_users, nrow = 1) +
+    theme(legend.position = "top")
+```
+
+## Python
+```{python}
+#| label: facet-internet-python
+#| fig-cap: "Scatterplot using facets for different ranges of Internet connectivity."
+(g + geom_point(alpha = 0.9, mapping = aes(size = 'roadways')) +
+     coord_trans(y='log10') +
+     facet_wrap('~net_users', nrow=1) +
+     theme(legend_position='top')).show()
+```
+
+:::
+
+---
+
+-   범주형 변수 하나로 구분
+
+#### `facet_grid()`
+
+-   범주형 변수 두 개의 조합으로 구분
+
+---  
+
+### 층
+
+- 두 개 이상의 자료표의 데이터를 그래프로 표현해야 할 필요가 종종 있음
+
+#### 메디케어 자료
+
+`MedicareCharges` 및 `MedicareProviders` 자료표는 미국 각 주의 의료 절차의 평균 비용에 대한 정보를 담고 있음.
+
+-    `MedicareCharges` 표에서 각 행은 각 주에서 관련 평균 비용과 함께 서로 다른 의료 절차(`drg`)를 나타냄.
+
+::: {.panel-tabset}
+## R
+```{r}
+ChargesNJ <- MedicareCharges %>% 
+              filter(stateProvider == "NJ")  # New Jersey only
+```
+
+## Python
+```{python}
+MedicareCharges = pl.read_csv('data/MedicareCharges.csv')
+ChargesNJ = (
+    MedicareCharges
+      .filter(pl.col("stateProvider") == "NJ")
+)
+```
+
+:::
+
+
+---
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-compare-NJ
+#| fig-cap: "Bar graph of average charges for medical procedures in New Jersey."
+p <- ggplot(
+      data = ChargesNJ,
+      aes(x = reorder(drg, mean_charge), y = mean_charge)
+     ) +
+     geom_col(fill = "gray") +
+     ylab("Statewide Average Charges ($)") +
+     xlab("Medical Procedure (DRG)") +
+     theme(axis.text.x = element_text(angle = 90, hjust = 1,  size = rel(0.5)))
+p
+```
+
+## Python
+
+```{python}
+#| label: fig-compare-NJ-python
+#| fig-cap: "Bar graph of average charges for medical procedures in New Jersey."
+p = (
+    ggplot(
+        data = ChargesNJ,
+        mapping = aes(
+            x = "reorder(drg, mean_charge)", 
+            y = "mean_charge"
+        )
+    ) +
+    geom_col(fill="gray") +
+    ylab("Statewide Average Charges ($)") +
+    xlab("Medical Procedure (DRG)") +
+    theme(
+        axis_text_x = element_text(
+            angle = 90, 
+            hjust = 1, 
+            size = 8 # rel(0.5) equivalent depends on base size, usually ~8-10
+        )
+    )
+)
+p.show()
+```
+
+:::
+
+-   Aesthetic:  `drg` (`mean_charge`에 따라 오름차순으로 정렬) -> `x`,  `mean_charge` -> `y`
+
+-   Glyph: 막대 (`geom_col()`)
+
+---
+
+#### 다른 주와의 비교
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-compare-NJ-2
+#| fig-cap: "Bar graph adding a second layer to provide a comparison of New Jersey to other states. Each dot represents one state, while the bars represent New Jersey."  
+p + geom_point(data = MedicareCharges, size = 1, alpha = 0.3)
+```
+
+## Python
+```{python}
+#| label: fig-compare-NJ-2-python
+#| fig-cap: "Bar graph adding a second layer to provide a comparison of New Jersey to other states. Each dot represents one state, while the bars represent New Jersey."  
+(p + geom_point(data = MedicareCharges, size=1, alpha=0.3)).show()
+```
+
+:::
+
+-   Glyphs: 막대 --- 뉴저지, 점 --- 미국 전역의 주
+
+-   뉴저지의 진료비가 전 의료 절차에 걸쳐 대해 전국에서 가장 높은 수준이라는 것을 쉽게 알 수 있음
+
+# 표준 데이터 그래픽
+
+
+## 1변수 도표
+
+-   통계학에서 표준적인 데이터 그래픽(Tukey, 1990)은 화려하지는 않으나 단순하고 효과적
+
+-   종종 하나의 변수에 대한 분포를 이해하는 과정이 필요함
+
+---
+
+### 히스토그램
+
+-   `SAT_2010` 자료에서 수학 점수(`math`)를 `x`에 대응 (수치형).
+
+::: {.panel-tabset}
+## R
+```{r}
+g <- ggplot(data = SAT_2010, aes(x = math))
+```
+
+## Python
+```{python}
+# SAT_2010 = pd.read_csv('data/SAT_2010.csv')
+SAT_2010 = pl.read_csv('data/SAT_2010.csv')
+g = ggplot(data = SAT_2010) + aes(x='math')
+```
+
+:::
+
+---
+
+-   `geom_histogram()`
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-SAT-1
+#| fig-cap: "Histogram showing the distribution of math SAT scores by state."
+g + geom_histogram(binwidth = 10) + labs(x = "Average Math SAT score")
+```
+
+## Python
+```{python}
+#| label: fig-SAT-1-python
+#| fig-cap: "Histogram showing the distribution of math SAT scores by state."
+(g + geom_histogram(binwidth = 10) + xlab("Average Math SAT score")).show()
+```
+
+:::
+
+---
+
+- `binwidth` 인수로 bin의 넓이를 조절해가면서 자신의 데이터에 가장 적절한 값을 결정해야 함  
+
+-   가로축: SAT 수학 점수 (수치형)
+    +   선형 척도
+    +   시각적 단서: 위치 및 방향
+
+-   좌표계: 데카르트 좌표계
+
+---
+
+### 밀도 도표
+
+-   `geom_density()`로 같은 자료를 핵평활화(kernel smoothing)
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-SAT-2
+#| fig-cap: "Density plot showing the distribution of average math SAT scores by state."
+g + geom_density(adjust = 0.3)
+```
+
+## Python
+```{python}
+#| label: fig-SAT-2-python
+#| fig-cap: "Density plot showing the distribution of average math SAT scores by state."
+(g + geom_density(adjust = 0.3)).show()
+```
+
+:::
+
+-   `adjust`: `geom_histogram()`의 `binwidth`와 비슷한 역할 (핵 대역폭 조절)
+
+---
+
+### 막대그래프
+
+-   `SAT_2010` 자료의 주별(`state`) 수학 점수 평균 분포 (범주형)
+-   `geom_col()`
+
+::: {.panel-tabset}
+## R
+```{r}
+bc <- ggplot(
+  data = head(SAT_2010, 10),  # only the first 10 states (in alphabetical order)
+  aes(x = reorder(state, math), y = math)
+) +
+  geom_col() +  # sort the state names in order of their average math SAT score
+  labs(x = "State", y = "Average Math SAT score")
+```
+
+## Python
+
+```{python}
+bc = (
+    ggplot(
+        data = SAT_2010.head(10),
+        mapping = aes(
+            x = "reorder(state, math)", 
+            y = "math"
+        )
+    ) +
+    geom_col() +
+    labs(x = "State", y = "Average Math SAT score")
+)
+```
+
+:::
+
+---
+
+::: {.panel-tabset}
+## R
+```{r, echo=FALSE}
+#| label: fig-bar2
+#| fig-cap: "A bar plot showing the distribution of average math SAT scores for a selection of states."
+bc
+```
+
+## Python
+```{python, echo=FALSE}
+#| label: fig-bar2-python
+#| fig-cap: "A bar plot showing the distribution of average math SAT scores for a selection of states."
+bc.show()
+```
+
+:::
+
+---
+
+### 누적 막대 도표
+
+-   분할표의 도시 
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-stacked-bar
+#| fig-cap: "A stacked bar plot showing the distribution of substance of abuse for participants in the HELP study."
+ggplot(data = mosaicData::HELPrct, aes(x = homeless)) + 
+  geom_bar(aes(fill = substance), position = "fill") +
+  scale_fill_brewer(palette = "Spectral") + 
+  coord_flip()
+```
+
+## Python
+```{python}
+#| label: fig-stacked-bar-python
+#| fig-cap: "A stacked bar plot showing the distribution of substance of abuse for participants in the HELP study."
+HELPrct = pd.read_csv('data/HELPrct.csv')
+(ggplot(data = HELPrct, mapping=aes(x='homeless')) +
+ geom_bar(aes(fill = 'substance'), position = "fill") +
+ scale_fill_brewer(type='diverging', palette = "Spectral") +
+ coord_flip()
+).show()
+```
+
+:::
+
+---  
+
+## 다변량 도표
+
+-   두 개 이상의 변수 사이의 관계를 전달
+
+### 산점도
+
+-   두 수치형 변수의 관계
+-   좌표계: 데카르트, `x` = (변수 1), `y` = (변수 2)
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-basic-scatterplot
+#| fig-cap: "A scatter plot showing the relationship between the average SAT math score and the expenditure per pupil."
+g <- ggplot(
+  data = SAT_2010, 
+  aes(x = expenditure, y = math)   # expenditure per pupil (1k USD) 
+) + 
+  geom_point()
+g
+```
+
+## Python
+```{python}
+#| label: fig-basic-scatterplot-python
+#| fig-cap: "A scatter plot showing the relationship between the average SAT math score and the expenditure per pupil."
+g = (ggplot(
+  data = SAT_2010, 
+  mapping=aes(x='expenditure', y='math')
+  ) 
+  + geom_point() # expenditure per pupil (1k USD)
+)
+g.show()
+```
+
+:::
+
+---
+
+-    산점도 위에 선형 회귀선을 그려 두 변수 사이의 관계를 더 잘 설명할 수 있다.
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-basic-scatterplot-lm
+#| fig-cap: "A scatter plot with the simple linear regression line showing the relationship between the average SAT math score and the expenditure per pupil."
+g <- g + 
+  geom_smooth(method = "lm", se = FALSE) + 
+  xlab("Average expenditure per student ($1000)") +
+  ylab("Average score on math SAT")
+g
+```
+
+## Python
+```{python}
+#| label: fig-basic-scatterplot-lm-python
+#| fig-cap: "A scatter plot with the simple linear regression line showing the relationship between the average SAT math score and the expenditure per pupil."
+g = (g + 
+     geom_smooth(method = "lm", se = False, color='blue') +
+     xlab("Average expenditure per student ($1000)") +
+     ylab("Average score on math SAT")
+)
+g.show()
+```
+
+:::
+
+---
+  
+-   층 추가: `SAT_rate` (low, medium, high score)
+    + 해당 주에서 SAT를 본 학생의 비율
+-   Aesthetic 추가: `SAT_rate` -> `color`
+
+---
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-basic-scatterplot-lm-color
+#| fig-cap: "Scatterplot using the color aesthetic to separate the relationship between two numeric variables by a third categorical variable."
+
+SAT_2010 <- SAT_2010 %>%
+  mutate(
+    SAT_rate = cut(
+      sat_pct, 
+      breaks = c(0, 30, 60, 100), 
+      labels = c("low", "medium", "high")
+    )
+  )
+g <- g %+% SAT_2010  # update the data frame that is bound to our plot
+g + aes(color = SAT_rate)
+```
+
+## Python
+```{python}
+#| label: fig-basic-scatterplot-lm-color-python
+#| fig-cap: "Scatterplot using the color aesthetic to separate the relationship between two numeric variables by a third categorical variable."
+
+SAT_2010 = SAT_2010.with_columns(
+    (pl.col("sat_pct").cut(
+        breaks=[30, 60], 
+        labels=["low", "medium", "high"]
+    )).alias("SAT_rate")
+)
+g = ggplot(data = SAT_2010, mapping=aes(x='expenditure', y='math',color = 'SAT_rate')) + geom_point()
+g = (g + geom_smooth(method = "lm", se = False,
+                       mapping = aes(color='SAT_rate')) +
+     xlab("Average expenditure per student ($1000)") +
+     ylab("Average score on math SAT")
+)
+g.show()
+```
+
+:::
+
+---
+
+-   Faceting: `facet_wrap()`
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-basic-scatterplot-lm-facet
+#| fig-cap: "Scatterplot using a facet_wrap() to separate the relationship between two numeric variables by a third categorical variable."
+g + facet_wrap(~ SAT_rate)
+```
+
+## Python
+```{python}
+#| label: fig-basic-scatterplot-lm-facet-python
+#| fig-cap: "Scatterplot using a facet_wrap() to separate the relationship between two numeric variables by a third categorical variable."
+(g + facet_wrap('~ SAT_rate')).show()
+```
+
+:::
+
+---
+
+### NHANES 자료
+
+-   미국 국민 건강 및 영양조사를 통해 얻은 자료로 개인의 체형이나 성별, 나이 등의 정보를 포함
+
+-   `Height` vs `Age`, by `Gender`
+
+::: {.panel-tabset}
+## R
+```{r}
+#| label: fig-NHANES-height-age
+#| fig-cap: "A scatterplot for 1,000 random individuals from the NHANES study. Note how mapping gender to color illuminates the differences in height between men and women."
+ggplot(
+  data = dplyr::slice_sample(NHANES::NHANES, n = 1000), 
+  aes(x = Age, y = Height, color = fct_relevel(Gender, "male")) # reset factor levels
+) + 
+  geom_point() + 
+  geom_smooth() + 
+  xlab("Age (years)") + 
+  ylab("Height (cm)") +
+  labs(color = "Gender")
+```  
+
+## Python
+```{python}
+#| label: fig-NHANES-height-age-python
+#| fig-cap: "A scatterplot for 1,000 random individuals from the NHANES study. Note how mapping gender to color illuminates the differences in height between men and women."
+NHANES = pl.read_csv('data/NHANES.csv', null_values="NA")
+nhanes_sample = (
+    NHANES
+    .sample(n=1000)
+    .with_columns(
+        (pl.col("Gender").cast(pl.Categorical))
+        .alias("Gender")
+    )
+)
+(ggplot(
+  data = nhanes_sample, 
+  mapping=aes(x='Age',y='Height', color = 'Gender')) +
+ geom_point() +
+ geom_smooth() +
+ xlab('Age (years)') +
+ ylab('Height (cm)') +
+ labs(color = 'Gender')
+).show()
+```  
+
+:::
+
+---
+
+### 시계열
+
+-   시간을 가로축으로 하고 점들을 선으로 연결하여 시간적 연속성을 나타내는 산점도
+
+-   `whately_2015`: 2015년 미국 매사추세츠주 서부의 날씨 관측 자료
+
+::: {.panel-tabset}
+## R
+```{r}
+wp <- ggplot(data = macleish::whately_2015, aes(x = when, y = temperature)) + 
+  geom_line(color = "darkgray") + 
+  geom_smooth() + 
+  xlab(NULL) + 
+  ylab("Temperature (degrees Celsius)")
+```
+
+## Python
+```{python}
+whately_2015 = pl.read_csv('data/whately_2015.csv', infer_schema_length=10000)
+whately_2015 = whately_2015.with_columns(
+    pl.col("when").str.to_datetime()
+)
+wp = (ggplot(data = whately_2015, 
+             mapping=aes(x='when', y='temperature')) +
+      geom_line(color = 'darkgray') +
+      geom_smooth(method='lowess', se=False, color='blue', span=0.2) +
+      xlab('') +
+      ylab("Temperature (degrees Celsius)")
+)
+```
+
+:::
+
+---
+
+::: {.panel-tabset}
+## R
+```{r echo=FALSE}
+#| label: fig-time-series
+#| fig-cap: "A time series showing the change in temperature at the MacLeish field station in 2015."
+wp
+```
+
+## Python
+```{python echo=FALSE}
+#| label: fig-time-series-python
+#| fig-cap: "A time series showing the change in temperature at the MacLeish field station in 2015."
+wp.show()
+```
+
+:::
+
+-   10분 간격으로 측정되어 시간에 따른 변동이 심함 --- 설명변수로서 적절한가?
+
+---
+
+### 상자 수염 도표
+
+-   수치형과 범주형 변수 간의 관계 도시
+
+-   시간을 월별로 묶어 범주형으로 변환하여 달과 기온의 관계를 생각해볼 수 있다.  
+
+::: {.smaller}
+
+::: {.panel-tabset}
+## R
+```{r}
+whately_2015 %>%
+mutate(month = as.factor(lubridate::month(when, label = TRUE))) %>%
+group_by(month) %>%
+skim(temperature) %>%
+select(-na) 
+```
+
+## Python
+```{python}
+(
+    whately_2015
+    .with_columns(
+        (pl.col("when").dt.strftime("%B").cast(pl.Categorical))
+        .alias("month")
+    )
+    .group_by("month")
+    .agg([
+        pl.col("temperature").count().alias("count"),
+        pl.col("temperature").mean().alias("mean"),
+        pl.col("temperature").std().alias("sd"),
+        pl.col("temperature").min().alias("min"),
+        pl.col("temperature").quantile(0.25).alias("p25"),
+        pl.col("temperature").median().alias("p50"),
+        pl.col("temperature").quantile(0.75).alias("p75"),
+        pl.col("temperature").max().alias("max")
+    ])
+)
+```
+:::
+
+:::
+
+---
+
+::: {.panel-tabset}
+## R
+```{r}
+bp <- ggplot(
+    data = whately_2015,
+    aes(
+        x = lubridate::month(when, label = TRUE),
+        y = temperature
+    )
+) +
+geom_boxplot() +
+xlab("Month") +
+ylab("Temperature (degrees Celsius)")
+```
+
+## Python
+```{python}
+month_order = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+whately_2015_plot = whately_2015.with_columns(
+    (pl.col("when")
+     .dt.strftime("%b")
+     .cast(pl.Enum(month_order)))
+    .alias("month") # Ensures chronological sorting, not alphabetical
+)
+bp = (ggplot(data = whately_2015_plot, 
+             mapping = aes(x='month', y='temperature')) +
+      geom_boxplot() +
+      xlab("Month") +
+      ylab("Temperature (degrees Celsius)") 
+)
+```
+
+:::
+
+---
+
+::: {.panel-tabset}
+## R
+```{r echo=FALSE}
+#| label: fig-macleishbox
+#| fig-cap: "A box-and-whisker of temperatures by month at the MacLeish field station."
+bp
+```
+
+## Python
+```{python echo=FALSE}
+#| label: fig-macleishbox-python
+#| fig-cap: "A box-and-whisker of temperatures by month at the MacLeish field station."
+bp.show()
+```
+
+:::
+
+- 각 월별 요약값(최솟값, Q1, 중앙값, Q3, 최댓값)을 그림으로 표현함.
+
+---
+
+### 모자이크 도표
+
+-   설명변수와 반응변수가 모두 범주형인 경우
+
+-   나이와 BMI에 따른 당뇨병 환자 비율
+
+::: {.panel-tabset}
+## R
+```{r}
+mosaic_to_plot <- NHANES %>%
+  filter(Age > 19) %>%
+  mutate(AgeDecade = droplevels(AgeDecade)) %>%
+  select(AgeDecade, Diabetes, BMI_WHO) %>% 
+  na.omit()
+
+mp <- ggplot(mosaic_to_plot) +
+  geom_mosaic(
+    aes(x = product(BMI_WHO, AgeDecade), fill = Diabetes)
+  ) + 
+  ylab("BMI") + 
+  xlab("Age (by decade)") + 
+  coord_flip()
+```
+
+## Python
+```{python, eval=FALSE}
+mosaic_to_plot = (
+    NHANES
+    .filter(pl.col("Age") > 19)
+    .select(["AgeDecade", "Diabetes", "BMI_WHO"])
+    .drop_nulls()
+).to_pandas()
+
+mosaic_plot = mosaic(mosaic_to_plot, 
+                ['BMI_WHO', 'AgeDecade', 'Diabetes'], 
+                gap=0.01, labelizer=lambda k: "", label_rotation=10)
+plt.ylabel('Age (by decade)', fontsize=10)
+plt.xlabel('BMI', fontsize=10)
+plt.show()
+```
+
+:::
+
+---
+
+::: {.panel-tabset}
+## R
+```{r echo=FALSE}
+#| label: fig-prepmosaic
+#| fig-cap: "Mosaic plot (eikosogram) of diabetes by age and weight status (BMI)."
+    mp
+```
+
+## Python
+```{python echo=FALSE}
+#| label: fig-prepmosaic-python
+#| fig-cap: "Mosaic plot (eikosogram) of diabetes by age and weight status (BMI)."
+mosaic_to_plot = (
+    NHANES
+    .filter(pl.col("Age") > 19)
+    .select(["AgeDecade", "Diabetes", "BMI_WHO"])
+    .drop_nulls()
+).to_pandas()
+
+mosaic_plot = mosaic(mosaic_to_plot, 
+                ['BMI_WHO', 'AgeDecade', 'Diabetes'], 
+                gap=0.01, labelizer=lambda k: "", label_rotation=10)
+plt.ylabel('Age (by decade)', fontsize=10)
+plt.xlabel('BMI', fontsize=10)
+plt.show()
+```
+
+:::
+
+
+- 상자의 넓이는 각 셀의 관측치에 비례
+- 당뇨병은 나이가 많고 비만인 사람에게 더 흔하게 나타난다.
+
+---  
+
+### 기본 데이터 그래픽 정리
+
+::: {.smaller}
+
+| 반응변수(`y`) | 설명변수(`x`) | 도표 종류 | `geom_*()` |
+|---------|:--------|:-----------------|:---------------------------------------|
+|         | 수치형  | 히스토그램, 밀도 | `geom_histogram()`, `geom_density()`   |
+|         | 범주형  | 누적 막대        | `geom_bar()`   |
+| 수치형  | 수치형  | 산점도           | `geom_point()` |
+| 수치형  | 범주형  | 상자 수염        | `geom_boxplot()`   |
+| 범주형  | 범주형  | 모자이크         | `geom_mosaic()` |
+
+: {tbl-colwidths="[20,20, 30, 30]"}
+
+:::
