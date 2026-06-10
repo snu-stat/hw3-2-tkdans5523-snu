@@ -27,9 +27,8 @@ jobs:
       - name: Install Python dependencies via Conda
         run: |
           conda install -y -n r-reticulate -c conda-forge \
-            numpy pandas matplotlib scipy statsmodels patsy
-          pip install pylahman
-        # 추가로 필요한 패키지 설치
+            numpy pandas matplotlib scipy statsmodels patsy pip
+          conda run -n r-reticulate python -m pip install pylahman
         shell: bash -l {0}
 
       - name: Set up R

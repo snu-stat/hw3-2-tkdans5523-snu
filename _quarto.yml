@@ -1,9 +1,6 @@
 project:
   type: website
   output-dir: _site
-  render:
-    - hw03.qmd
-    - index.md
 
 format:
   html:
