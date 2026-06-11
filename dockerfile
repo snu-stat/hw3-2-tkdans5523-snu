@@ -39,7 +39,7 @@ RUN usermod -l ${NB_USER} rstudio && \
     chown -R ${NB_USER} /opt/conda /home/${NB_USER}
     
 # 8. 노트북 파일 복사
-COPY _site/hw03.ipynb /home/${NB_USER}/hw03.ipynb
+COPY hw03.ipynb /home/${NB_USER}/hw03.ipynb
 RUN chown ${NB_USER}:users /home/${NB_USER}/hw03.ipynb
 
 USER ${NB_USER}
