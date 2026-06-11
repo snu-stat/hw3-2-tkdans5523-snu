@@ -27,8 +27,8 @@ jobs:
       - name: Install Python dependencies via Conda
         run: |
           conda install -y -n r-reticulate -c conda-forge \
-            numpy pandas matplotlib scipy statsmodels patsy pip
-          conda run -n r-reticulate python -m pip install pylahman
+            numpy pandas scipy statsmodels patsy pip \
+            "matplotlib<3.8"
         shell: bash -l {0}
 
       - name: Set up R
