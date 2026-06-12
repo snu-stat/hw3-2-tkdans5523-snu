@@ -8,6 +8,7 @@ institute: 서울대학교 통계학과
 format:
   html:
       embed-resources: true
+  ipynb: default
 
 mainfont: "Noto Sans Korean Light"
 ---
