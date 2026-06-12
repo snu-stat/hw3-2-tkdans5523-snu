@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Miniconda 설치
-ENV CONDA_DIR /opt/conda
+ENV CONDA_DIR=/opt/conda
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
     /bin/bash ~/miniconda.sh -b -p /opt/conda && \
     rm ~/miniconda.sh
@@ -20,7 +20,9 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 ENV PATH=$CONDA_DIR/bin:$PATH
 RUN conda create --override-channels -c conda-forge -n r-reticulate python=3.10 -y && \
     conda install --override-channels -c conda-forge -y -n r-reticulate \
-    numpy pandas scipy statsmodels patsy pip "matplotlib<3.8"
+    numpy pandas scipy statsmodels patsy pip "matplotlib<3.8" \
+    jupyter jupyter_client notebook
+ENV PATH=/opt/conda/envs/r-reticulate/bin:$CONDA_DIR/bin:$PATH
 # 추가로 필요한 패키지 설치
 
 # 5. R 패키지 설치 (reticulate 및 필수 패키지)
