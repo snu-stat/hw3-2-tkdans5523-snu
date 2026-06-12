@@ -19,7 +19,8 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 # 4. Conda 경로 설정 및 환경 생성
 ENV PATH=$CONDA_DIR/bin:$PATH
 RUN conda create -n r-reticulate python=3.10 -y && \
-    conda install -n r-reticulate -c conda-forge numpy pandas matplotlib -y
+    conda install -y -n r-reticulate -c conda-forge \
+    numpy pandas scipy statsmodels patsy pip "matplotlib<3.8"
 # 추가로 필요한 패키지 설치
 
 # 5. R 패키지 설치 (reticulate 및 필수 패키지)
@@ -39,8 +40,8 @@ RUN usermod -l ${NB_USER} rstudio && \
     chown -R ${NB_USER} /opt/conda /home/${NB_USER}
     
 # 8. 노트북 파일 복사
-COPY _site/hw03.ipynb /home/${NB_USER}/hw03.ipynb
-RUN chown ${NB_USER}:users /home/${NB_USER}/hw03.ipynb
+COPY hw03.ipynb /home/${NB_USER}/hw03.ipynb
+RUN COPY hw03.ipynb /home/${NB_USER}/hw03.ipynb
 
 USER ${NB_USER}
 WORKDIR /home/${NB_USER}
