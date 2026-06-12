@@ -24,9 +24,11 @@ RUN conda create --override-channels -c conda-forge -n r-reticulate python=3.10 
 # 추가로 필요한 패키지 설치
 
 # 5. R 패키지 설치 (reticulate 및 필수 패키지)
-RUN R -e "install.packages(c('reticulate', 'remotes', 'IRkernel'))" && \
+RUN apt-get update && apt-get install -y libzmq3-dev && \
+    R -e "install.packages(c('reticulate', 'remotes', 'IRkernel'))" && \
     R -e "install.packages(c('tidyverse', 'Lahman', 'MASS', 'patchwork'))" && \
-    R -e "IRkernel::installspec(user = FALSE)"
+    R -e "IRkernel::installspec(user = FALSE)" && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 # 추가로 필요한 패키지 설치
 
 # 6. reticulate가 사용할 Python 경로 고정 (환경 변수)
