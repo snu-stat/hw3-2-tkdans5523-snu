@@ -20,15 +20,16 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 ENV PATH=$CONDA_DIR/bin:$PATH
 RUN conda create --override-channels -c conda-forge -n r-reticulate python=3.10 -y && \
     conda install --override-channels -c conda-forge -y -n r-reticulate \
-    numpy pandas scipy statsmodels patsy pip "matplotlib<3.8" \
-    jupyter jupyter_client notebook
+    numpy pandas scipy statsmodels polars plotnine patchworklib pip "matplotlib<3.8" \
+    jupyter jupyter_client notebook && \
+    /opt/conda/envs/r-reticulate/bin/pip install pylahman
 ENV PATH=/opt/conda/envs/r-reticulate/bin:$CONDA_DIR/bin:$PATH
 # 추가로 필요한 패키지 설치
 
 # 5. R 패키지 설치 (reticulate 및 필수 패키지)
 RUN apt-get update && apt-get install -y libzmq3-dev && \
     R -e "install.packages(c('reticulate', 'remotes', 'IRkernel'))" && \
-    R -e "install.packages(c('tidyverse', 'Lahman', 'MASS', 'patchwork'))" && \
+    R -e "install.packages(c('tidyverse', 'Lahman', 'NHANES', 'mosaic', 'dplyr', 'tidyr', 'MASS', 'patchwork'))" && \
     R -e "IRkernel::installspec(user = FALSE)" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 # 추가로 필요한 패키지 설치

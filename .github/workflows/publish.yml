@@ -28,8 +28,9 @@ jobs:
       - name: Install Python dependencies via Conda
         run: |
           conda install -y -n r-reticulate -c conda-forge \
-            numpy pandas scipy statsmodels patsy pip \
-            "matplotlib<3.8"
+            numpy pandas scipy statsmodels polars plotnine patchworklib pip \
+            "matplotlib<3.8" jupyter jupyter_client notebook polars plotnine patchworklib
+          python -m pip install pylahman
         shell: bash -l {0}
 
       - name: Set up R
@@ -45,7 +46,7 @@ jobs:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
           install.packages(c("reticulate", "knitr", "rmarkdown"))
-          install.packages(c("tidyverse", "Lahman", "MASS", "patchwork"))
+          install.packages(c("tidyverse", "Lahman", "NHANES", "mosaic", "dplyr", "tidyr", "MASS", "patchwork"))
         # 추가로 필요한 패키지 설치
         shell: Rscript {0}
 
