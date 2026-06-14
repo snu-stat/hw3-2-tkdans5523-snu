@@ -40,10 +40,9 @@ library(dplyr)
 library(tidyr)
 library(patchwork)
 
-#if (!dir.exists("data")) dir.create("data")
-
-# 데이터를 csv로 저장
-# write.csv(NHANES, "data/NHANES.csv", row.names = FALSE)
+if (!dir.exists("data")) dir.create("data")
+if (!dir.exists("figure")) dir.create("figure")
+write.csv(NHANES, "data/NHANES.csv", row.names = FALSE)
 ```
 
 ## Python
@@ -57,7 +56,6 @@ import statsmodels.formula.api as smf
 from scipy.optimize import curve_fit
 from scipy.stats import chi2, t
 from plotnine import *
-import patchworklib as pw
 import pylahman
 ```
 
@@ -666,9 +664,14 @@ plot_pred <- ggplot(teams_diag, aes(x = pred_WPct, y = WPct)) +
   ) +
   theme_minimal()
 
-# 그래프 출력
-plot_resid / plot_pred
+# 그래프 저장
+dir.create("figure", showWarnings = FALSE, recursive = TRUE)
+ggsave("figure/R_residual_plot.png", plot_resid, width = 12, height = 8, dpi = 150)
+ggsave("figure/R_predicted_plot.png", plot_pred, width = 12, height = 8, dpi = 150)
 ```
+
+![](figure/R_residual_plot.png)
+![](figure/R_predicted_plot.png)
 
 ## Python
 
@@ -706,17 +709,13 @@ plot_pred = (
     + theme_minimal()
 )
 
-# 두 그래프를 나란히 출력
-plot_resid_pw = pw.load_ggplot(plot_resid, figsize=(6, 4))
-plot_pred_pw = pw.load_ggplot(plot_pred, figsize=(6, 4))
-
-diagnostic_plot = plot_resid_pw / plot_pred_pw
-
-diagnostic_plot.savefig("figure/diagnostic_plot.png")
-
+# 두 그래프를 나란히 출력 (plotnine 0.15+ 내장 composition)
+plot_resid.save("figure/P_residual_plot.png", width=12, height=8, dpi=150)
+plot_pred.save("figure/P_predicted_plot.png", width=12, height=8, dpi=150)
 ```
 
-![](figure/diagnostic_plot.png)
+![](figure/P_residual_plot.png)
+![](figure/P_predicted_plot.png)
 
 :::
 

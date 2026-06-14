@@ -20,7 +20,7 @@ RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86
 ENV PATH=$CONDA_DIR/bin:$PATH
 RUN conda create --override-channels -c conda-forge -n r-reticulate python=3.10 -y && \
     conda install --override-channels -c conda-forge -y -n r-reticulate \
-    numpy pandas scipy statsmodels polars plotnine patchworklib pip "matplotlib<3.8" \
+    numpy pandas scipy statsmodels polars plotnine patsy pip "matplotlib<3.8" \
     jupyter jupyter_client notebook && \
     /opt/conda/envs/r-reticulate/bin/pip install pylahman
 ENV PATH=/opt/conda/envs/r-reticulate/bin:$CONDA_DIR/bin:$PATH
