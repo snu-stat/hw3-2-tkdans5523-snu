@@ -1136,9 +1136,11 @@ step_poisson, selected_vars_poisson = stepwise_selection(
 )
 
 print(step_poisson.summary())
+print("selected:", selected_vars_poisson)
 ```
 :::
 
+- **해석 기준 (stepwise)**: R `step()`과 Python `stepwise_selection()`의 선택 변수 집합이 동일하면(예: `logRS`, `ERA`, `CG`, `E`, `SV`) 두 언어에서 같은 stepwise 결과가 나온 것이다. 각 계수의 점추정치가 소수점 둘째~셋째 자리까지 같으면 추정도 일치한 것으로 본다.
 - AIC를 기준으로한 Stepwise 변수 선택 결과, `logRS`, `ERA`, `CG`, `E`, `SV`가 선택되었다.
     - ERA (Earned Run Average, 평균자책점)
     - CG (Complete Games, 완투 경기 수)
@@ -1177,10 +1179,46 @@ cat(output_compare)
 ## Python
 
 ```{python}
-print("Hello, World!")
+def glm_aic_r(model, data):
+    """R AIC(glm)과 동일 (가중 이항 GLM용)."""
+    mu = np.clip(model.fittedvalues, np.finfo(float).eps, 1 - np.finfo(float).eps)
+    n_trials = data["W"] + data["L"]
+    log_lik = binom.logpmf(data["W"], n_trials, mu).sum()
+    n_params = len(model.params)
+    return -2 * log_lik + 2 * n_params, n_params
+
+final_poisson = smf.glm(
+    formula="W ~ logRS + ERA + SV",
+    data=df,
+    family=sm.families.Poisson(),
+).fit()
+
+summary_final_poisson = pd.DataFrame({
+    "Estimate": final_poisson.params,
+    "Std. Error": final_poisson.bse,
+    "z value": final_poisson.tvalues,
+    "Pr(>|z|)": final_poisson.pvalues,
+}).round(4)
+
+logistic_aic, _ = glm_aic_r(final_model, df)
+poisson_aic = -2 * final_poisson.llf + 2 * len(final_poisson.params)
+
+aic_comparison = pd.DataFrame({
+    "AIC": [round(logistic_aic, 4), round(poisson_aic, 4)]
+}, index=["final_model (logistic)", "final_poisson (Poisson)"])
+
+output_compare = (
+    "Summary final_poisson\n"
+    f"{summary_final_poisson.to_string()}\n\n"
+    "AIC Comparison\n"
+    f"{aic_comparison.to_string()}\n"
+)
+print(output_compare)
 ```
 :::
 
+- **해석 기준 (최종 포아송 모형)**: R `summary(final_poisson)`과 Python 계수표에서 `logRS`, `ERA`, `SV`의 부호·크기·p-value가 같으면(소수점 셋째 자리까지) 동일하게 적합된 것이다. `문제 2-1` 2항처럼 모형 표기는 다르지만 계수가 같으면 같은 결론을 내린다.
+- **해석 기준 (AIC 비교)**: 로지스틱 `final_model` AIC와 포아송 `final_poisson` AIC는 반응변수(승률 vs 승수)와 분포가 달라 직접 비교하지 않는다. 두 AIC 수치가 모두 출력되더라도, 더 낮다고 해서 한쪽 모형이 우월하다고 말하지 않는다.
 - 최종 모형의 적합 결과, 세 변수 (`logRS`, `ERA`, `SV`)의 p-value가 모두 0.05 미만으로 나타났다.
 - AIC 비교 결과, `문제 2-2` 모형의 AIC 수치가 더 낮지만, `문제 2-2` 모형은 승률(비율)을, 포아송 모형은 승리 횟수(카운트)를 반응변수로 사용하여 척도와 분포가 다르므로 두 모형의 우위를 AIC로 직접 비교하는 것은 적절하지 않다.
 - 다만 두 분석 모두 공격과 투수력을 대표하는 지표가 핵심 변수로 도출되었다는 공통점을 확인할 수 있다.
@@ -1214,13 +1252,36 @@ warnings()[1]
 ## Python
 
 ```{python}
-print("Hello, World!")
+import warnings
+
+predictors_nb = [p for p in PREDICTORS if p not in ("logRS", "logRA")]
+formula_nb = "W ~ logRS + logRA + " + " + ".join(predictors_nb)
+
+with warnings.catch_warnings(record=True) as wlist:
+    full_nb = smf.glm(
+        formula=formula_nb,
+        data=df,
+        family=sm.families.NegativeBinomial(alpha=1.0),
+    ).fit(maxiter=100, disp=0)
+
+if wlist:
+    print("Warnings during NB fit:")
+    for msg in wlist:
+        print(msg.message)
+else:
+    print("No warnings during NB fit.")
+
+print(full_nb.summary())
 ```
 :::
 
-- 위에서 음이항 회귀모형을 적합하는 과정에서 `iteration 제한에 도달했습니다`라는 경고가 발생하였다.
-- 음이항 모형이 에러를 낸 이유를 파악하기 위해, 동일한 변수를 넣은 포아송 회귀모형의 '산포 비율(Dispersion Ratio = 잔차 이탈도 / 잔차 자유도)'을 계산해 보자.
-- 산포 비율이 1에 가까워야 정상이지만, 1보다 훨씬 작은 값이 도출되었다면, 데이터가 과소산포(underdispersion) 상태에 있음을 시사한다.
+- 음이항 회귀 적합 결과, R에서는 `iteration 제한에 도달했습니다`(또는 유사한 수렴 경고)가 출력되고, Python에서도 `ConvergenceWarning`·`maxiter` 관련 경고가 함께 나타난다.
+- R `warnings()[1]`과 Python 경고 메시지가 같은 유형(수렴 실패)이면, 두 언어 모두 음이항 모형이 이 데이터에 대해 정상적으로 적합되지 못한 것으로 같은 결론을 내린다. (양쪽 모두 경고가 없으면 `summary()`의 계수·AIC를 비교한다.)
+- 수렴 경고가 발생했으므로 계수 추정치를 최종 결과로 바로 해석하기보다, 원인(과소·과대산포)을 확인하기 위해 동일 설명변수를 사용한 포아송 모형의 산포 비율을 계산한다.
+
+- **해석 기준 (음이항 적합)**: 위 세 항이 모두 해당하면 “음이항 적합 실패 → 산포 비율 진단으로 넘어간다”는 흐름으로 서술한다.
+- 음이항 모형이 수렴하지 못한 이유를 파악하기 위해, 동일한 변수를 넣은 포아송 회귀모형의 산포 비율(Dispersion Ratio = 잔차 이탈도 / 잔차 자유도)을 계산한다.
+- 산포 비율이 1에 가까워야 정상이지만, 1보다 훨씬 작은 값이 도출되었다면 데이터가 과소산포(underdispersion) 상태에 있음을 시사한다.
 
 ::: {.panel-tabset}
 
@@ -1237,11 +1298,13 @@ cat("Dispersion Ratio :", dispersion_ratio, "\n")
 ## Python
 
 ```{python}
-print("Hello, World!")
+dispersion_ratio = full_poisson.deviance / full_poisson.df_resid
+print(f"Dispersion Ratio : {dispersion_ratio}")
 ```
 :::
 
-- 현재 Dispersion Ratio가 0.13으로 나타나, 1보다 훨씬 작은 값을 보이고 있다. 이는 데이터가 과소산포(underdispersion) 상태에 있음을 시사한다.
+- **해석 기준 (산포 비율)**: R과 Python의 Dispersion Ratio가 모두 1보다 훨씬 작으면(예: 0.1~0.2대) 과소산포로 같은 해석을 한다. 두 값이 소수점 셋째 자리까지 비슷하면 계산도 일치한 것이다.
+- **해석 기준 (산포·음이항 종합)**: R/Python 모두 수렴 경고가 뜨고 Dispersion Ratio가 0.13처럼 1보다 훨씬 작으면, 과소산포로 인해 `glm.nb()`가 실패한 것으로 같은 결론을 내린다.
 - 음이항 회귀모형은 기본적으로 분산이 평균보다 큰 과대산포(Overdispersion) 상황을 해결하기 위해 사용하는 모형이다.
 - 이전 문제들의 분석 결과를 참고하여 추측해보면, 현재 모형에는 반응 변수(`W`)를 거의 완벽하게 설명할 수 있는 설명 변수들을 포함되었다. 
 - 변수들이 종속변수의 움직임을 100% 가깝게 설명해 버리면서, 오히려 모형이 설명하고 잔차의 분산이 평균보다 극단적으로 작아지는 **조건부 과소산포(Conditional Underdispersion)**가 발생했다. (산포 비율이 1보다 훨씬 작다는 것이 그 증거이다.)
@@ -1259,6 +1322,151 @@ $$
 
 
 ### 답안
+
+- 제시된 Bill James 식에 로짓 변환을 취하면
+  $\text{logit}(WPct_{i,t}) = (k + g\,I_t)\,\log(RS_{i,t}/RA_{i,t})$
+  가 된다. 여기서 $I_t = I(1994 \leq t \leq 2005)$이다.
+- $g=0$이면 두 시대의 지수 $k$가 같고, $g \neq 0$이면 스테로이드 시대(1994–2005)의 지수가 $k+g$로 달라진다.
+- 따라서 절편 없는 로지스틱 모형
+  $\text{logit}(WPct) = k\,\log(RS/RA) + g\,I\,\log(RS/RA)$
+  를 적합하고, `steroid:logRR` 계수(또는 중첩모형 LRT)로 $H_0: g=0$을 검정한다.
+- 데이터는 1994–2005년과 2010–2025년을 포함하고 2020년은 제외한다. 가중치는 `W + L`을 사용한다.
+
+::: {.panel-tabset}
+
+## R
+
+```{r}
+teams_24 <- Teams %>%
+  filter(
+    (yearID >= 1994 & yearID <= 2005) | (yearID >= 2010 & yearID <= 2025),
+    yearID != 2020
+  ) %>%
+  mutate(
+    WPct = W / (W + L),
+    RS = R,
+    logRR = log(RS / RA),
+    steroid = as.integer(yearID >= 1994 & yearID <= 2005)
+  )
+
+# H0: g = 0  (동일한 k)
+model_k <- glm(
+  WPct ~ 0 + logRR,
+  family = binomial,
+  weights = W + L,
+  data = teams_24
+)
+
+# H1: g != 0  (시대별 k + g)
+model_kg <- glm(
+  WPct ~ 0 + logRR + steroid:logRR,
+  family = binomial,
+  weights = W + L,
+  data = teams_24
+)
+
+# g = 0 검정 (중첩모형 LRT)
+g_test <- anova(model_k, model_kg, test = "Chisq")
+
+coef_kg <- summary(model_kg)$coefficients
+g_coef_name <- setdiff(names(coef(model_kg)), names(coef(model_k)))
+p_col <- grep("^Pr\\(", colnames(coef_kg), value = TRUE)[1]
+g_wald_p <- if (length(g_coef_name) == 1L) coef_kg[g_coef_name, p_col] else NA_real_
+
+output_24 <- paste0(
+  "Nested model test for g = 0\n",
+  paste(capture.output(print(g_test)), collapse = "\n"), "\n\n",
+  "Coefficients (model with g)\n",
+  paste(capture.output(print(round(coef_kg, 4))), collapse = "\n"), "\n",
+  if (length(g_coef_name) == 1L) {
+    paste0("Wald p-value for ", g_coef_name, " (g): ", format.pval(g_wald_p, digits = 4), "\n")
+  } else {
+    "Wald p-value for g: could not identify interaction coefficient\n"
+  }
+)
+cat(output_24)
+```
+
+## Python
+
+```{python}
+import pylahman
+
+Teams_24 = pl.from_pandas(pylahman.Teams())
+
+teams_24 = (
+    Teams_24.filter(
+        (
+            (pl.col("yearID") >= 1994) & (pl.col("yearID") <= 2005)
+        ) | (
+            (pl.col("yearID") >= 2010) & (pl.col("yearID") <= 2025)
+        )
+    )
+    .filter(pl.col("yearID") != 2020)
+    .with_columns([
+        (pl.col("W") / (pl.col("W") + pl.col("L"))).alias("WPct"),
+        (pl.col("R") / pl.col("RA")).log().alias("logRR"),
+        (
+            (pl.col("yearID") >= 1994) & (pl.col("yearID") <= 2005)
+        ).cast(pl.Int8).alias("steroid"),
+    ])
+    .select(["WPct", "W", "L", "logRR", "steroid"])
+    .to_pandas()
+)
+
+teams_24["steroid_logRR"] = teams_24["steroid"] * teams_24["logRR"]
+trial_w = teams_24["W"] + teams_24["L"]
+
+model_k = smf.glm(
+    formula="WPct ~ 0 + logRR",
+    data=teams_24,
+    family=sm.families.Binomial(),
+    var_weights=trial_w,
+).fit()
+
+model_kg = smf.glm(
+    formula="WPct ~ 0 + logRR + steroid_logRR",
+    data=teams_24,
+    family=sm.families.Binomial(),
+    var_weights=trial_w,
+).fit()
+
+lr_stat = 2 * (model_kg.llf - model_k.llf)
+lr_p = chi2.sf(lr_stat, df=1)
+g_wald_p = model_kg.pvalues["steroid_logRR"]
+
+coef_kg = pd.DataFrame({
+    "Estimate": model_kg.params,
+    "Std. Error": model_kg.bse,
+    "z value": model_kg.tvalues,
+    "Pr(>|z|)": model_kg.pvalues,
+}).round(4)
+
+g_test = pd.DataFrame({
+    "LR stat": [lr_stat],
+    "df": [1],
+    "p-value": [lr_p],
+})
+
+output_24 = (
+    "Nested model test for g = 0\n"
+    f"{g_test.round(4).to_string(index=False)}\n\n"
+    "Coefficients (model with g)\n"
+    f"{coef_kg.to_string()}\n"
+    f"Wald p-value for steroid_logRR (g): {g_wald_p:.4g}\n"
+)
+print(output_24)
+```
+:::
+
+- **해석 기준 ($k$ 추정)**: `logRR` 계수는 최근 시대(2010–2025)의 $k$에 해당한다. R과 Python에서 이 값이 소수점 둘째~셋째 자리까지 같으면(예: 1.7~1.8대) `문제 2-1`의 $k$ 추정과 같은 결론을 내린다.
+- **해석 기준 ($g$ 검정)**: 중첩모형 LRT p-value 또는 `steroid:logRR` Wald p-value가
+  - **0.05 미만**이면 $g \neq 0$으로, 스테로이드 시대와 최근 시대의 $k$가 **유의하게 다르다**고 해석한다.
+  - **0.05 이상**이면 $g=0$을 기각하지 못하므로, 두 시대의 $k$ 차이를 **통계적으로 확인할 수 없다**고 해석한다.
+- **해석 기준 (R vs Python)**: $k$, $g$ 점추정치·p-value·LRT p-value가 양쪽에서 같으면 동일한 가설검정 결론이다. `문제 2-1` 2항과 마찬가지로, 모형 표기(`steroid:logRR` vs `steroid_logRR`)가 달라도 계수가 같으면 같은 추정으로 본다.
+- LRT p-value와 `steroid:logRR`의 Wald p-value가 모두 0.05 이상이면, 스테로이드 시대(1994–2005)와 최근 시대(2010–2025) 사이에 Bill James 지수 $k$의 유의한 차이($g \neq 0$)는 확인되지 않는다.
+- `logRR` 계수(최근 시대의 $k$)는 `문제 2-1`에서 추정한 $k$와 같은 범위(약 1.7~1.8)로 나타나며, 두 시대를 합친 분석에서도 득실점 비율이 승률을 설명하는 핵심 변수임을 다시 확인할 수 있다.
+- `steroid:logRR` 계수 $g$의 부호가 양(+)이면 스테로이드 시대의 지수가 더 크고, 음(–)이면 더 작다. 다만 p-value가 0.05 이상이면 그 차이는 통계적으로 유의하지 않다.
 
 # 3부  데이터 분석 기술
 
