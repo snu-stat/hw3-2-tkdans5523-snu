@@ -4562,17 +4562,17 @@ BMI                  -0.0385     0.0056  -6.8961  ...      0.9622   0.9517    0.
 </div>
 <ul>
 <li>분석에 포함된 모든 설명변수의 유의확률(p-value)이 0.05 미만으로 나타났다.</li>
-<li>또한 모든 변수의 95% 신뢰구간(CI_2.5% ~ CI_97.5%)이 1을 포함하지 않으므로, 선택된 6개의 변수 모두 20세 이상 성인의 현재 흡연 여부를 예측하는 데 통계적으로 매우 유의미한 변수이다.</li>
+<li>또한 모든 변수의 95% 신뢰구간이 1을 포함하지 않으므로, 선택된 6개의 변수 모두 20세 이상 성인의 현재 흡연 여부를 예측하는 데 통계적으로 유의한 변수로 볼 수 있다.</li>
 <li>흡연 확률을 높이는 주요 요인 (<code>Odds_Ratio</code> &gt; 1)
 <ul>
-<li>음주 경험 (Alcohol12PlusYr): <code>Odds_Ratio</code>가 3.8993으로 가장 높다. 지난 1년간 음주 경험이 있는 성인은 경험이 없는 성인에 비해 현재 흡연자일 오즈(Odds)가 약 3.9배 높다.</li>
-<li>성별 (Gender): <code>Odds_Ratio</code>가 1.2200으로, 남성이 여성에 비해 흡연자일 오즈가 약 1.22배 높다.</li>
+<li>음주 경험 (<code>Alcohol12PlusYr</code>): <code>Odds_Ratio</code>가 3.8993으로 가장 높다. 지난 1년간 음주 경험이 있는 성인은 경험이 없는 성인에 비해 현재 흡연자일 오즈(Odds)가 약 3.9배 높다.</li>
+<li>성별 (<code>Gender</code>): <code>Odds_Ratio</code>가 1.2200으로, 남성이 여성에 비해 흡연자일 오즈가 약 1.22배 높다.</li>
 </ul></li>
 <li>흡연 확률을 낮추는 요인 (<code>Odds_Ratio</code> &lt; 1)
 <ul>
-<li>신체 활동 (PhysActive): 평소 규칙적인 신체 활동을 하는 성인은 하지 않는 성인에 비해 흡연자일 오즈가 약 0.43배로 크게 낮아진다.</li>
-<li>가구 소득 수준 (Poverty): 빈곤 지수(소득 대비 생계비 비율)가 1단위 증가할수록 (즉, 경제적 수준이 양호할수록) 흡연자일 오즈가 약 0.75배로 감소한다.</li>
-<li>연령 (Age) 및 체질량지수 (BMI): 연령이 1세 증가할 때마다, BMI가 1단위 증가할 때마다 현재 흡연자일 오즈가 각각 0.98배, 0.96배로 소폭 감소하는 경향을 보인다.</li>
+<li>신체 활동 (<code>PhysActive</code>): 평소 규칙적인 신체 활동을 하는 성인은 하지 않는 성인에 비해 흡연자일 오즈가 약 0.43배로 크게 낮아진다.</li>
+<li>가구 소득 수준 (<code>Poverty</code>): 빈곤 지수(소득 대비 생계비 비율)가 1단위 증가할수록 (즉, 경제적 수준이 양호할수록) 흡연자일 오즈가 약 0.75배로 감소한다.</li>
+<li>연령 (<code>Age</code>) 및 체질량지수 (<code>BMI</code>): 연령이 1세 증가할 때마다, BMI가 1단위 증가할 때마다 현재 흡연자일 오즈가 각각 0.98배, 0.96배로 소폭 감소하는 경향을 보인다.</li>
 </ul></li>
 <li>결론
 <ul>
@@ -4604,7 +4604,7 @@ BMI                  -0.0385     0.0056  -6.8961  ...      0.9622   0.9517    0.
 <h3 class="anchored" data-anchor-id="답안-1">답안</h3>
 <ul>
 <li>Lahman 패키지의 Teams 데이터셋을 불러온 뒤 filter() 함수를 사용하여 2010년부터 2025년 데이터 중 2020년을 제외하고 추출한다.</li>
-<li>기존에 제시된 공식에 사용되는 변수들을 준비하기 위해, <code>WPct</code> 변수를 계산하고, 득점을 나타내는 <code>RS</code> 변수(원 데이터의 R)를 준비한다.</li>
+<li>제시된 공식에 사용되는 변수들을 기존 데이터셋에 추가한다.(<code>WPct</code>, <code>RS</code>, <code>RA</code>)</li>
 <li>여기서 RS는 팀이 시즌 동안 득점한 총 점수(Runs Scored)를 나타내며, RA는 팀이 시즌 동안 허용한 총 점수(Runs Allowed)를 나타낸다.</li>
 <li>모형이 선형이 아닌 <span class="math inline">\(WPct = \frac{1}{1+(RA/RS)^k}\)</span> 형태이므로, 강의 자료를 참고하여 비선형 최소제곱법을 수행하는 <code>nls()</code> 함수를 사용하여 모델을 적합한다.</li>
 </ul>
@@ -4747,14 +4747,16 @@ k    1.7528     0.0293  59.7302       0.0   1.6951    1.8105</code></pre>
 <h3 class="anchored" data-anchor-id="답안-2">답안</h3>
 <ul>
 <li>Bill James 공식의 양변에 로짓(logit) 변환을 취하면 다음과 같이 수식이 전개된다. <span class="math display">\[\text{logit}(WPct) = \log\left(\frac{WPct}{1-WPct}\right) = \log\left(\frac{1}{(RA/RS)^k}\right) = k \cdot \log\left(\frac{RS}{RA}\right)\]</span></li>
-<li>로지스틱 회귀 모형의 일반적인 형태는 <span class="math inline">\(\text{logit}(P) = \beta_0 + \beta_1 X\)</span>이다.</li>
-<li>위 공식과 형태를 비교해 보면 다음과 같은 모형을 세울 수 있다. 이렇게 모형을 세우고 적합하면, 구하고자 하는 회귀계수 <span class="math inline">\(\beta_1\)</span>이 구조적으로 Bill James 공식의 모수 <span class="math inline">\(k\)</span>와 수학적으로 완전히 같은 의미를 가지게 된다.
+<li>로지스틱 회귀 모형의 일반적인 형태는 <span class="math inline">\(\text{logit}(Y) = \beta_0 + \beta_1 X\)</span>이다.</li>
+<li>위 공식과 형태를 비교해 보면 다음과 같은 모형을 세울 수 있다. <span class="math inline">\(\text{logit}(Y) = \beta_1 X\)</span></li>
+<li>이렇게 모형을 세우고 적합하면, 구하고자 하는 회귀계수 <span class="math inline">\(\beta_1\)</span>이 구조적으로 Bill James 공식의 모수 <span class="math inline">\(k\)</span>와 거의의 같은 의미를 가지게 된다.
 <ul>
 <li>반응변수: 승률 (<code>WPct</code>)</li>
 <li>설명변수: 득실점 비율의 로그값 (<code>log(run_ratio)</code>)</li>
 <li>절편 (<span class="math inline">\(\beta_0\)</span>): <span class="math inline">\(0\)</span> (절편이 없는 모형)</li>
 </ul></li>
-<li>한편, R의 glm() 함수에서 반응변수로 0과 1로 이루어진 이진 데이터가 아닌 ’비율 데이터(승률)’를 사용할 때는 총 경기 수(W + L)를 가중치(weights)로 지정해 주어야 한다. 로지스틱 회귀는 내부적으로 이항 분포를 가정하기 때문에, 단순한 승률 수치(예: 0.5)만으로는 데이터의 신뢰도를 알 수 없다. 예를 들어, 0.5의 승률이 10경기에서 나온 것인지 100경기에서 나온 것인지에 따라 그 승률의 신뢰도가 달라지므로, 총 경기 수를 가중치로 지정하여 모델이 각 관측치의 신뢰도를 반영할 수 있도록 해야 한다.</li>
+<li>R의 glm() 함수에서 반응변수로 0과 1로 이루어진 이진 데이터가 아닌 ’비율 데이터(승률)’를 사용할 때는 총 경기 수(W + L)를 가중치(weights)로 지정해 주어야 한다.</li>
+<li>로지스틱 회귀는 내부적으로 이항 분포를 가정하기 때문에, 단순한 승률 수치(예: 0.5)만으로는 데이터의 신뢰도를 알 수 없다. 예를 들어, 0.5의 승률이 10경기에서 나온 것인지 100경기에서 나온 것인지에 따라 그 승률의 신뢰도가 달라지므로, 총 경기 수를 가중치로 지정하여 모델이 각 관측치의 신뢰도를 반영할 수 있도록 해야 한다.</li>
 </ul>
 <div class="tabset-margin-container"></div><div class="panel-tabset">
 <ul class="nav nav-tabs" role="tablist"><li class="nav-item" role="presentation"><a class="nav-link active" id="tabset-5-1-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-1" role="tab" aria-controls="tabset-5-1" aria-selected="true" href>R</a></li><li class="nav-item" role="presentation"><a class="nav-link" id="tabset-5-2-tab" data-bs-toggle="tab" data-bs-target="#tabset-5-2" role="tab" aria-controls="tabset-5-2" aria-selected="false" href>Python</a></li></ul>
@@ -4842,8 +4844,8 @@ beta_1    1.7532     0.0456  38.4329       0.0   1.6638    1.8426</code></pre>
 </div>
 </div>
 <ul>
-<li>추정치는 소수점 둘째 자리까지 동일함을 알 수 있고, 신뢰구간도 거의 겹치는 것을 볼 수 있다.</li>
-<li>표준오차(Std_Error)의 경우, nls 모형은 오차의 분산이 항상 일정하다고 가정하는 반면, glm(로지스틱) 모형은 승률 같은 ’비율 데이터’가 0.5에 가까울수록 분산이 커진다는 이항 분포의 현실적인 특성을 반영하기 때문에, glm 모형의 표준오차가 조금 더 크고 신뢰구간이 더 넓게 계산된 것으로 보인다.</li>
+<li>추정치는 <code>nls</code> 모형과 <code>glm</code> 모형 모두 소수점 둘째 자리까지 동일함을 알 수 있고, 신뢰구간도 거의 겹치는 것을 볼 수 있다.</li>
+<li>표준오차(Std_Error)의 경우, <code>nls</code> 모형은 오차의 분산이 항상 일정하다고 가정하는 반면, <code>glm</code> 모형은 승률 같은 ’비율 데이터’가 0.5에 가까울수록 분산이 커진다는 이항 분포의 특성을 반영하기 때문에, <code>glm</code> 모형의 표준오차가 조금 더 크고 신뢰구간이 더 넓게 계산된 것으로 보인다.</li>
 </ul>
 <hr>
 <ol start="3" type="1">
@@ -5242,89 +5244,90 @@ Number of Fisher Scoring iterations: 3</code></pre>
 </div>
 <div id="tabset-10-2" class="tab-pane" role="tabpanel" aria-labelledby="tabset-10-2-tab">
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 데이터 불러오기 및 이름 변경</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 데이터 불러오기 및 이름 변경 (R Lahman과 컬럼명 통일)</span></span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>Teams <span class="op">=</span> pl.from_pandas(pylahman.Teams())</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>Teams <span class="op">=</span> Teams.rename({<span class="st">&quot;2B&quot;</span>: <span class="st">&quot;X2B&quot;</span>, <span class="st">&quot;3B&quot;</span>: <span class="st">&quot;X3B&quot;</span>, <span class="st">&quot;IPOuts&quot;</span>: <span class="st">&quot;IPouts&quot;</span>})</span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 조건에 맞게 데이터 필터링 및 변수 추가</span></span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> (</span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    Teams</span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">filter</span>(</span>
-<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;yearID&quot;</span>) <span class="op">&gt;=</span> <span class="dv">2010</span>) <span class="op">&amp;</span></span>
-<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;yearID&quot;</span>) <span class="op">&lt;=</span> <span class="dv">2025</span>) <span class="op">&amp;</span></span>
-<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;yearID&quot;</span>) <span class="op">!=</span> <span class="dv">2020</span>)</span>
-<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>    .with_columns([</span>
-<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;W&quot;</span>) <span class="op">/</span> (pl.col(<span class="st">&quot;W&quot;</span>) <span class="op">+</span> pl.col(<span class="st">&quot;L&quot;</span>))).alias(<span class="st">&quot;WPct&quot;</span>),</span>
-<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">&quot;R&quot;</span>).log().alias(<span class="st">&quot;logRS&quot;</span>),</span>
-<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">&quot;RA&quot;</span>).log().alias(<span class="st">&quot;logRA&quot;</span>),</span>
-<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>    ])</span>
-<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a>predictors <span class="op">=</span> [</span>
-<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;logRS&quot;</span>, <span class="st">&quot;logRA&quot;</span>, <span class="st">&quot;H&quot;</span>, <span class="st">&quot;X2B&quot;</span>, <span class="st">&quot;X3B&quot;</span>, <span class="st">&quot;HR&quot;</span>, <span class="st">&quot;BB&quot;</span>, <span class="st">&quot;SO&quot;</span>, <span class="st">&quot;CS&quot;</span>,</span>
-<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;HBP&quot;</span>, <span class="st">&quot;SF&quot;</span>, <span class="st">&quot;ERA&quot;</span>, <span class="st">&quot;CG&quot;</span>, <span class="st">&quot;SHO&quot;</span>, <span class="st">&quot;IPouts&quot;</span>, <span class="st">&quot;HA&quot;</span>, <span class="st">&quot;HRA&quot;</span>, <span class="st">&quot;BBA&quot;</span>,</span>
-<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;SOA&quot;</span>, <span class="st">&quot;E&quot;</span>, <span class="st">&quot;DP&quot;</span>, <span class="st">&quot;FP&quot;</span>, <span class="st">&quot;SV&quot;</span></span>
-<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a><span class="co"># 결측치 제거 및 pandas 데이터프레임으로 변환</span></span>
-<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> df.select([<span class="st">&quot;WPct&quot;</span>, <span class="st">&quot;W&quot;</span>, <span class="st">&quot;L&quot;</span>] <span class="op">+</span> predictors).drop_nulls().to_pandas()</span>
-<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 변수 선택 함수 정의</span></span>
-<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stepwise_selection(data, target, predictors):</span>
-<span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a>    current_predictors <span class="op">=</span> predictors.copy()</span>
-<span id="cb34-32"><a href="#cb34-32" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb34-33"><a href="#cb34-33" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 모형을 적합하고 반환하는 내부 함수</span></span>
-<span id="cb34-34"><a href="#cb34-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> get_model(features):</span>
-<span id="cb34-35"><a href="#cb34-35" aria-hidden="true" tabindex="-1"></a>        formula <span class="op">=</span> <span class="ss">f&quot;</span><span class="sc">{</span>target<span class="sc">}</span><span class="ss"> ~ 1&quot;</span> <span class="cf">if</span> <span class="bu">len</span>(features) <span class="op">==</span> <span class="dv">0</span> <span class="cf">else</span> <span class="ss">f&quot;</span><span class="sc">{</span>target<span class="sc">}</span><span class="ss"> ~ </span><span class="sc">{</span><span class="st">&#39; + &#39;</span><span class="sc">.</span>join(features)<span class="sc">}</span><span class="ss">&quot;</span></span>
-<span id="cb34-36"><a href="#cb34-36" aria-hidden="true" tabindex="-1"></a>        model <span class="op">=</span> smf.glm(</span>
-<span id="cb34-37"><a href="#cb34-37" aria-hidden="true" tabindex="-1"></a>            formula<span class="op">=</span>formula,</span>
-<span id="cb34-38"><a href="#cb34-38" aria-hidden="true" tabindex="-1"></a>            data<span class="op">=</span>data,</span>
-<span id="cb34-39"><a href="#cb34-39" aria-hidden="true" tabindex="-1"></a>            family<span class="op">=</span>sm.families.Binomial(),</span>
-<span id="cb34-40"><a href="#cb34-40" aria-hidden="true" tabindex="-1"></a>            var_weights<span class="op">=</span>data[<span class="st">&quot;W&quot;</span>] <span class="op">+</span> data[<span class="st">&quot;L&quot;</span>]</span>
-<span id="cb34-41"><a href="#cb34-41" aria-hidden="true" tabindex="-1"></a>        ).fit()</span>
-<span id="cb34-42"><a href="#cb34-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> model</span>
-<span id="cb34-43"><a href="#cb34-43" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb34-44"><a href="#cb34-44" aria-hidden="true" tabindex="-1"></a>    best_model <span class="op">=</span> get_model(current_predictors)</span>
-<span id="cb34-45"><a href="#cb34-45" aria-hidden="true" tabindex="-1"></a>    best_aic <span class="op">=</span> best_model.aic</span>
-<span id="cb34-46"><a href="#cb34-46" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb34-47"><a href="#cb34-47" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="va">True</span>:</span>
-<span id="cb34-48"><a href="#cb34-48" aria-hidden="true" tabindex="-1"></a>        changed <span class="op">=</span> <span class="va">False</span></span>
-<span id="cb34-49"><a href="#cb34-49" aria-hidden="true" tabindex="-1"></a>        </span>
-<span id="cb34-50"><a href="#cb34-50" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 기존 변수 제거 탐색</span></span>
-<span id="cb34-51"><a href="#cb34-51" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> feature <span class="kw">in</span> current_predictors:</span>
-<span id="cb34-52"><a href="#cb34-52" aria-hidden="true" tabindex="-1"></a>            trial_features <span class="op">=</span> [f <span class="cf">for</span> f <span class="kw">in</span> current_predictors <span class="cf">if</span> f <span class="op">!=</span> feature]</span>
-<span id="cb34-53"><a href="#cb34-53" aria-hidden="true" tabindex="-1"></a>            model <span class="op">=</span> get_model(trial_features)</span>
-<span id="cb34-54"><a href="#cb34-54" aria-hidden="true" tabindex="-1"></a>            </span>
-<span id="cb34-55"><a href="#cb34-55" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> model.aic <span class="op">&lt;</span> best_aic:</span>
-<span id="cb34-56"><a href="#cb34-56" aria-hidden="true" tabindex="-1"></a>                best_aic <span class="op">=</span> model.aic</span>
-<span id="cb34-57"><a href="#cb34-57" aria-hidden="true" tabindex="-1"></a>                current_predictors <span class="op">=</span> trial_features</span>
-<span id="cb34-58"><a href="#cb34-58" aria-hidden="true" tabindex="-1"></a>                best_model <span class="op">=</span> model</span>
-<span id="cb34-59"><a href="#cb34-59" aria-hidden="true" tabindex="-1"></a>                changed <span class="op">=</span> <span class="va">True</span></span>
-<span id="cb34-60"><a href="#cb34-60" aria-hidden="true" tabindex="-1"></a>                </span>
-<span id="cb34-61"><a href="#cb34-61" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 제외된 변수 추가 탐색</span></span>
-<span id="cb34-62"><a href="#cb34-62" aria-hidden="true" tabindex="-1"></a>        remaining_features <span class="op">=</span> [f <span class="cf">for</span> f <span class="kw">in</span> predictors <span class="cf">if</span> f <span class="kw">not</span> <span class="kw">in</span> current_predictors]</span>
-<span id="cb34-63"><a href="#cb34-63" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> feature <span class="kw">in</span> remaining_features:</span>
-<span id="cb34-64"><a href="#cb34-64" aria-hidden="true" tabindex="-1"></a>            trial_features <span class="op">=</span> current_predictors <span class="op">+</span> [feature]</span>
-<span id="cb34-65"><a href="#cb34-65" aria-hidden="true" tabindex="-1"></a>            model <span class="op">=</span> get_model(trial_features)</span>
-<span id="cb34-66"><a href="#cb34-66" aria-hidden="true" tabindex="-1"></a>            </span>
-<span id="cb34-67"><a href="#cb34-67" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> model.aic <span class="op">&lt;</span> best_aic:</span>
-<span id="cb34-68"><a href="#cb34-68" aria-hidden="true" tabindex="-1"></a>                best_aic <span class="op">=</span> model.aic</span>
-<span id="cb34-69"><a href="#cb34-69" aria-hidden="true" tabindex="-1"></a>                current_predictors <span class="op">=</span> trial_features</span>
-<span id="cb34-70"><a href="#cb34-70" aria-hidden="true" tabindex="-1"></a>                best_model <span class="op">=</span> model</span>
-<span id="cb34-71"><a href="#cb34-71" aria-hidden="true" tabindex="-1"></a>                changed <span class="op">=</span> <span class="va">True</span></span>
-<span id="cb34-72"><a href="#cb34-72" aria-hidden="true" tabindex="-1"></a>                </span>
-<span id="cb34-73"><a href="#cb34-73" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 더 이상 AIC가 개선되지 않으면 반복 종료</span></span>
-<span id="cb34-74"><a href="#cb34-74" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> changed:</span>
-<span id="cb34-75"><a href="#cb34-75" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
-<span id="cb34-76"><a href="#cb34-76" aria-hidden="true" tabindex="-1"></a>            </span>
-<span id="cb34-77"><a href="#cb34-77" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> best_model, current_predictors</span>
-<span id="cb34-78"><a href="#cb34-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-79"><a href="#cb34-79" aria-hidden="true" tabindex="-1"></a><span class="co"># 전체 모형 적합 및 변수 선택 실행</span></span>
-<span id="cb34-80"><a href="#cb34-80" aria-hidden="true" tabindex="-1"></a>step_model, selected_vars <span class="op">=</span> stepwise_selection(df, <span class="st">&quot;WPct&quot;</span>, predictors)</span>
-<span id="cb34-81"><a href="#cb34-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-82"><a href="#cb34-82" aria-hidden="true" tabindex="-1"></a><span class="co"># 최종 결과 출력</span></span>
-<span id="cb34-83"><a href="#cb34-83" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(step_model.summary().tables[<span class="dv">1</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>rename_map <span class="op">=</span> {<span class="st">&quot;2B&quot;</span>: <span class="st">&quot;X2B&quot;</span>, <span class="st">&quot;3B&quot;</span>: <span class="st">&quot;X3B&quot;</span>, <span class="st">&quot;IPOuts&quot;</span>: <span class="st">&quot;IPouts&quot;</span>}</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>Teams <span class="op">=</span> Teams.rename({k: v <span class="cf">for</span> k, v <span class="kw">in</span> rename_map.items() <span class="cf">if</span> k <span class="kw">in</span> Teams.columns})</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 조건에 맞게 데이터 필터링 및 변수 추가</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> (</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>    Teams</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>    .<span class="bu">filter</span>(</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;yearID&quot;</span>) <span class="op">&gt;=</span> <span class="dv">2010</span>) <span class="op">&amp;</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;yearID&quot;</span>) <span class="op">&lt;=</span> <span class="dv">2025</span>) <span class="op">&amp;</span></span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;yearID&quot;</span>) <span class="op">!=</span> <span class="dv">2020</span>)</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>    .with_columns([</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>        (pl.col(<span class="st">&quot;W&quot;</span>) <span class="op">/</span> (pl.col(<span class="st">&quot;W&quot;</span>) <span class="op">+</span> pl.col(<span class="st">&quot;L&quot;</span>))).alias(<span class="st">&quot;WPct&quot;</span>),</span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">&quot;R&quot;</span>).log().alias(<span class="st">&quot;logRS&quot;</span>),</span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">&quot;RA&quot;</span>).log().alias(<span class="st">&quot;logRA&quot;</span>),</span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a>predictors <span class="op">=</span> [</span>
+<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;logRS&quot;</span>, <span class="st">&quot;logRA&quot;</span>, <span class="st">&quot;H&quot;</span>, <span class="st">&quot;X2B&quot;</span>, <span class="st">&quot;X3B&quot;</span>, <span class="st">&quot;HR&quot;</span>, <span class="st">&quot;BB&quot;</span>, <span class="st">&quot;SO&quot;</span>, <span class="st">&quot;CS&quot;</span>,</span>
+<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;HBP&quot;</span>, <span class="st">&quot;SF&quot;</span>, <span class="st">&quot;ERA&quot;</span>, <span class="st">&quot;CG&quot;</span>, <span class="st">&quot;SHO&quot;</span>, <span class="st">&quot;IPouts&quot;</span>, <span class="st">&quot;HA&quot;</span>, <span class="st">&quot;HRA&quot;</span>, <span class="st">&quot;BBA&quot;</span>,</span>
+<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;SOA&quot;</span>, <span class="st">&quot;E&quot;</span>, <span class="st">&quot;DP&quot;</span>, <span class="st">&quot;FP&quot;</span>, <span class="st">&quot;SV&quot;</span></span>
+<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a><span class="co"># 결측치 제거 및 pandas 데이터프레임으로 변환</span></span>
+<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> df.select([<span class="st">&quot;WPct&quot;</span>, <span class="st">&quot;W&quot;</span>, <span class="st">&quot;L&quot;</span>] <span class="op">+</span> predictors).drop_nulls().to_pandas()</span>
+<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a><span class="co"># 변수 선택 함수 정의</span></span>
+<span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> stepwise_selection(data, target, predictors):</span>
+<span id="cb34-32"><a href="#cb34-32" aria-hidden="true" tabindex="-1"></a>    current_predictors <span class="op">=</span> predictors.copy()</span>
+<span id="cb34-33"><a href="#cb34-33" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb34-34"><a href="#cb34-34" aria-hidden="true" tabindex="-1"></a>    <span class="co"># 모형을 적합하고 반환하는 내부 함수</span></span>
+<span id="cb34-35"><a href="#cb34-35" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> get_model(features):</span>
+<span id="cb34-36"><a href="#cb34-36" aria-hidden="true" tabindex="-1"></a>        formula <span class="op">=</span> <span class="ss">f&quot;</span><span class="sc">{</span>target<span class="sc">}</span><span class="ss"> ~ 1&quot;</span> <span class="cf">if</span> <span class="bu">len</span>(features) <span class="op">==</span> <span class="dv">0</span> <span class="cf">else</span> <span class="ss">f&quot;</span><span class="sc">{</span>target<span class="sc">}</span><span class="ss"> ~ </span><span class="sc">{</span><span class="st">&#39; + &#39;</span><span class="sc">.</span>join(features)<span class="sc">}</span><span class="ss">&quot;</span></span>
+<span id="cb34-37"><a href="#cb34-37" aria-hidden="true" tabindex="-1"></a>        model <span class="op">=</span> smf.glm(</span>
+<span id="cb34-38"><a href="#cb34-38" aria-hidden="true" tabindex="-1"></a>            formula<span class="op">=</span>formula,</span>
+<span id="cb34-39"><a href="#cb34-39" aria-hidden="true" tabindex="-1"></a>            data<span class="op">=</span>data,</span>
+<span id="cb34-40"><a href="#cb34-40" aria-hidden="true" tabindex="-1"></a>            family<span class="op">=</span>sm.families.Binomial(),</span>
+<span id="cb34-41"><a href="#cb34-41" aria-hidden="true" tabindex="-1"></a>            var_weights<span class="op">=</span>data[<span class="st">&quot;W&quot;</span>] <span class="op">+</span> data[<span class="st">&quot;L&quot;</span>]</span>
+<span id="cb34-42"><a href="#cb34-42" aria-hidden="true" tabindex="-1"></a>        ).fit()</span>
+<span id="cb34-43"><a href="#cb34-43" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> model</span>
+<span id="cb34-44"><a href="#cb34-44" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb34-45"><a href="#cb34-45" aria-hidden="true" tabindex="-1"></a>    best_model <span class="op">=</span> get_model(current_predictors)</span>
+<span id="cb34-46"><a href="#cb34-46" aria-hidden="true" tabindex="-1"></a>    best_aic <span class="op">=</span> best_model.aic</span>
+<span id="cb34-47"><a href="#cb34-47" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb34-48"><a href="#cb34-48" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="va">True</span>:</span>
+<span id="cb34-49"><a href="#cb34-49" aria-hidden="true" tabindex="-1"></a>        changed <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb34-50"><a href="#cb34-50" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb34-51"><a href="#cb34-51" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 기존 변수 제거 탐색</span></span>
+<span id="cb34-52"><a href="#cb34-52" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> feature <span class="kw">in</span> current_predictors:</span>
+<span id="cb34-53"><a href="#cb34-53" aria-hidden="true" tabindex="-1"></a>            trial_features <span class="op">=</span> [f <span class="cf">for</span> f <span class="kw">in</span> current_predictors <span class="cf">if</span> f <span class="op">!=</span> feature]</span>
+<span id="cb34-54"><a href="#cb34-54" aria-hidden="true" tabindex="-1"></a>            model <span class="op">=</span> get_model(trial_features)</span>
+<span id="cb34-55"><a href="#cb34-55" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb34-56"><a href="#cb34-56" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> model.aic <span class="op">&lt;</span> best_aic:</span>
+<span id="cb34-57"><a href="#cb34-57" aria-hidden="true" tabindex="-1"></a>                best_aic <span class="op">=</span> model.aic</span>
+<span id="cb34-58"><a href="#cb34-58" aria-hidden="true" tabindex="-1"></a>                current_predictors <span class="op">=</span> trial_features</span>
+<span id="cb34-59"><a href="#cb34-59" aria-hidden="true" tabindex="-1"></a>                best_model <span class="op">=</span> model</span>
+<span id="cb34-60"><a href="#cb34-60" aria-hidden="true" tabindex="-1"></a>                changed <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb34-61"><a href="#cb34-61" aria-hidden="true" tabindex="-1"></a>                </span>
+<span id="cb34-62"><a href="#cb34-62" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 제외된 변수 추가 탐색</span></span>
+<span id="cb34-63"><a href="#cb34-63" aria-hidden="true" tabindex="-1"></a>        remaining_features <span class="op">=</span> [f <span class="cf">for</span> f <span class="kw">in</span> predictors <span class="cf">if</span> f <span class="kw">not</span> <span class="kw">in</span> current_predictors]</span>
+<span id="cb34-64"><a href="#cb34-64" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> feature <span class="kw">in</span> remaining_features:</span>
+<span id="cb34-65"><a href="#cb34-65" aria-hidden="true" tabindex="-1"></a>            trial_features <span class="op">=</span> current_predictors <span class="op">+</span> [feature]</span>
+<span id="cb34-66"><a href="#cb34-66" aria-hidden="true" tabindex="-1"></a>            model <span class="op">=</span> get_model(trial_features)</span>
+<span id="cb34-67"><a href="#cb34-67" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb34-68"><a href="#cb34-68" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> model.aic <span class="op">&lt;</span> best_aic:</span>
+<span id="cb34-69"><a href="#cb34-69" aria-hidden="true" tabindex="-1"></a>                best_aic <span class="op">=</span> model.aic</span>
+<span id="cb34-70"><a href="#cb34-70" aria-hidden="true" tabindex="-1"></a>                current_predictors <span class="op">=</span> trial_features</span>
+<span id="cb34-71"><a href="#cb34-71" aria-hidden="true" tabindex="-1"></a>                best_model <span class="op">=</span> model</span>
+<span id="cb34-72"><a href="#cb34-72" aria-hidden="true" tabindex="-1"></a>                changed <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb34-73"><a href="#cb34-73" aria-hidden="true" tabindex="-1"></a>                </span>
+<span id="cb34-74"><a href="#cb34-74" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 더 이상 AIC가 개선되지 않으면 반복 종료</span></span>
+<span id="cb34-75"><a href="#cb34-75" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">not</span> changed:</span>
+<span id="cb34-76"><a href="#cb34-76" aria-hidden="true" tabindex="-1"></a>            <span class="cf">break</span></span>
+<span id="cb34-77"><a href="#cb34-77" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb34-78"><a href="#cb34-78" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> best_model, current_predictors</span>
+<span id="cb34-79"><a href="#cb34-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-80"><a href="#cb34-80" aria-hidden="true" tabindex="-1"></a><span class="co"># 전체 모형 적합 및 변수 선택 실행</span></span>
+<span id="cb34-81"><a href="#cb34-81" aria-hidden="true" tabindex="-1"></a>step_model, selected_vars <span class="op">=</span> stepwise_selection(df, <span class="st">&quot;WPct&quot;</span>, predictors)</span>
+<span id="cb34-82"><a href="#cb34-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-83"><a href="#cb34-83" aria-hidden="true" tabindex="-1"></a><span class="co"># 최종 결과 출력</span></span>
+<span id="cb34-84"><a href="#cb34-84" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(step_model.summary().tables[<span class="dv">1</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>==============================================================================
                  coef    std err          z      P&gt;|z|      [0.025      0.975]
